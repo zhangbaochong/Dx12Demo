@@ -557,7 +557,8 @@ void ShadowDemo::LoadTextures()
 		"roadNormalMap",
 		"waterBottomDiffuseMap",
 		"waterBottomNormalMap",
-		"waterTex",
+		"waterDiffuseMap",
+		"waterNormalMap",
 		"skyCubeMap"
 	};
 
@@ -571,7 +572,8 @@ void ShadowDemo::LoadTextures()
 		L"../Textures/road_nrm.dds",
 		L"../Textures/water_bottom_dif.dds",
 		L"../Textures/water_bottom_nrm.dds",
-		L"../Textures/water002.dds",
+		L"../Textures/water002_dif.dds",
+		L"../Textures/water002_nrm.dds",
 		L"../Textures/grasscube1024.dds"
 	};
 
@@ -636,7 +638,7 @@ void ShadowDemo::BuildDescriptorHeaps()
 {
 	// Create the SRV heap.
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 10;
+	srvHeapDesc.NumDescriptors = 11;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(m_pD3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_pSrvDescriptorHeap)));
@@ -654,7 +656,8 @@ void ShadowDemo::BuildDescriptorHeaps()
 		m_textures["roadNormalMap"]->Resource,
 		m_textures["waterBottomDiffuseMap"]->Resource,
 		m_textures["waterBottomNormalMap"]->Resource,
-		m_textures["waterTex"]->Resource
+		m_textures["waterDiffuseMap"]->Resource,
+		m_textures["waterNormalMap"]->Resource
 	};
 
 	auto skyTex = m_textures["skyCubeMap"]->Resource;
@@ -1014,7 +1017,7 @@ void ShadowDemo::BuildMaterials()
 	water->Name = "water";
 	water->MatCBIndex = 4;
 	water->DiffuseSrvHeapIndex = 8; 
-	water->NormalSrvHeapIndex = 1;//无法线贴图,必须有法线 贴图？？
+	water->NormalSrvHeapIndex = 9;//无法线贴图,必须有法线 贴图？？
 	water->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.5f);//阿尔法值为0.5
 	water->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	water->Roughness = 1.0f;
@@ -1022,7 +1025,7 @@ void ShadowDemo::BuildMaterials()
 	auto sky = std::make_unique<Material>();
 	sky->Name = "sky";
 	sky->MatCBIndex = 5;
-	sky->DiffuseSrvHeapIndex = 9;
+	sky->DiffuseSrvHeapIndex = 10;
 	sky->NormalSrvHeapIndex = -1;//无法线贴图
 	sky->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	sky->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
