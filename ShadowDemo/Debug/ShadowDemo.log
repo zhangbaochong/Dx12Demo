@@ -1,0 +1,27 @@
+﻿  ShadowDemo.cpp
+d:\vsprojects\dx12demo\shadowdemo\shadowdemo.cpp(372): warning C4244: “=”: 从“float”转换到“LONG”，可能丢失数据
+d:\vsprojects\dx12demo\shadowdemo\shadowdemo.cpp(373): warning C4244: “=”: 从“float”转换到“LONG”，可能丢失数据
+d:\vsprojects\dx12demo\shadowdemo\shadowdemo.cpp(952): warning C4244: “参数”: 从“std::streamoff”转换到“unsigned int”，可能丢失数据
+d:\vsprojects\dx12demo\shadowdemo\shadowdemo.cpp(996): warning C4018: “<”: 有符号/无符号不匹配
+d:\vsprojects\dx12demo\shadowdemo\shadowdemo.cpp(999): warning C4018: “<”: 有符号/无符号不匹配
+  FrameResource.cpp
+  MathHelper.cpp
+  Input.cpp
+d:\vsprojects\dx12demo\shadowdemo\common\input.cpp(26): warning C4244: “=”: 从“float”转换到“LONG”，可能丢失数据
+d:\vsprojects\dx12demo\shadowdemo\common\input.cpp(27): warning C4244: “=”: 从“float”转换到“LONG”，可能丢失数据
+d:\vsprojects\dx12demo\shadowdemo\common\input.cpp(54): warning C4244: “return”: 从“const LONG”转换到“float”，可能丢失数据
+d:\vsprojects\dx12demo\shadowdemo\common\input.cpp(59): warning C4244: “return”: 从“const LONG”转换到“float”，可能丢失数据
+d:\vsprojects\dx12demo\shadowdemo\common\input.cpp(64): warning C4244: “return”: 从“const LONG”转换到“float”，可能丢失数据
+d:\vsprojects\dx12demo\shadowdemo\common\input.cpp(69): warning C4244: “return”: 从“const LONG”转换到“float”，可能丢失数据
+  GeometryGenerator.cpp
+  GameTimer.cpp
+  DDSTextureLoader.cpp
+  d3dUtil.cpp
+d:\vsprojects\dx12demo\shadowdemo\common\d3dutil.cpp(30): warning C4244: “参数”: 从“std::streamoff”转换到“SIZE_T”，可能丢失数据
+d:\vsprojects\dx12demo\shadowdemo\common\d3dutil.cpp(70): warning C4244: “=”: 从“UINT64”转换到“LONG_PTR”，可能丢失数据
+  D3d12Base.cpp
+d:\vsprojects\dx12demo\shadowdemo\common\d3d12base.cpp(218): warning C4244: “参数”: 从“int”转换到“float”，可能丢失数据
+  Camera.cpp
+  正在生成代码...
+  ShadowDemo.vcxproj -> D:\VsProjects\Dx12Demo\Debug\ShadowDemo.exe
+  ShadowDemo.vcxproj -> D:\VsProjects\Dx12Demo\Debug\ShadowDemo.pdb (Full PDB)

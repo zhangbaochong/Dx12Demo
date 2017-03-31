@@ -1,0 +1,8 @@
+*.sln
+*.vcxproj
+*.suo
+*.filters
+/Debug
+*.sdf
+*.db
+/Release

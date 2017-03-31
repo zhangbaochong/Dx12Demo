@@ -1,0 +1,5 @@
+﻿  BoxDemo.cpp
+d:\vsprojects\dx12demo\boxdemo\boxdemo.cpp(308): warning C4244: “=”: 从“float”转换到“LONG”，可能丢失数据
+d:\vsprojects\dx12demo\boxdemo\boxdemo.cpp(309): warning C4244: “=”: 从“float”转换到“LONG”，可能丢失数据
+  BoxDemo.vcxproj -> D:\VsProjects\Dx12Demo\Debug\BoxDemo.exe
+  BoxDemo.vcxproj -> D:\VsProjects\Dx12Demo\Debug\BoxDemo.pdb (Full PDB)
