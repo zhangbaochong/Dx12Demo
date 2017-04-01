@@ -79,7 +79,8 @@ private:
 	void BuildRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
-	void BuildShapeGeometry();
+	void BuildTerrainGeometry();
+	//void BuildShapeGeometry();
 	void BuildWavesGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
@@ -228,7 +229,7 @@ bool ShadowDemo::Initialize()
 	BuildRootSignature();
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
-	BuildShapeGeometry();
+	BuildTerrainGeometry();
 	BuildWavesGeometry();
 	BuildMaterials();
 	BuildRenderItems();
@@ -712,7 +713,7 @@ void ShadowDemo::BuildShadersAndInputLayout()
 }
 
 //´´½¨Íø¸ñ
-void ShadowDemo::BuildShapeGeometry()
+void ShadowDemo::BuildTerrainGeometry()
 {	
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 20, 20);
@@ -891,7 +892,7 @@ void ShadowDemo::BuildWavesGeometry()
 		submesh.StartIndexLocation = 0;
 		submesh.BaseVertexLocation = 0;
 
-		geo->DrawArgs["grid"] = submesh;
+		geo->DrawArgs["waterGrid"] = submesh;
 
 		m_geometries["waterGeo"] = std::move(geo);
 }
@@ -993,7 +994,7 @@ void ShadowDemo::BuildMaterials()
 	grassMat->NormalSrvHeapIndex = 3;
 	grassMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	grassMat->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
-	grassMat->Roughness = 1.0f;
+	grassMat->Roughness = 0.2f;
 
 	auto roadMat = std::make_unique<Material>();
 	roadMat->Name = "road";
@@ -1002,7 +1003,7 @@ void ShadowDemo::BuildMaterials()
 	roadMat->NormalSrvHeapIndex = 5;
 	roadMat->DiffuseAlbedo = XMFLOAT4(1.f, 1.f, 1.f, 1.0f);
 	roadMat->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
-	roadMat->Roughness = 0.9f;
+	roadMat->Roughness = 0.8f;
 
 	auto waterBottomMat = std::make_unique<Material>();
 	waterBottomMat->Name = "waterBottom";
@@ -1011,7 +1012,7 @@ void ShadowDemo::BuildMaterials()
 	waterBottomMat->NormalSrvHeapIndex = 7;
 	waterBottomMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	waterBottomMat->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
-	waterBottomMat->Roughness = 1.0f;
+	waterBottomMat->Roughness = 0.5f;
 
 	auto water = std::make_unique<Material>();
 	water->Name = "water";
@@ -1098,9 +1099,9 @@ void ShadowDemo::BuildRenderItems()
 	wavesRitem->mat = m_materials["water"].get();
 	wavesRitem->geo = m_geometries["waterGeo"].get();
 	wavesRitem->primitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	wavesRitem->indexCount = wavesRitem->geo->DrawArgs["grid"].IndexCount;
-	wavesRitem->startIndexLocation = wavesRitem->geo->DrawArgs["grid"].StartIndexLocation;
-	wavesRitem->baseVertexLocation = wavesRitem->geo->DrawArgs["grid"].BaseVertexLocation;
+	wavesRitem->indexCount = wavesRitem->geo->DrawArgs["waterGrid"].IndexCount;
+	wavesRitem->startIndexLocation = wavesRitem->geo->DrawArgs["waterGrid"].StartIndexLocation;
+	wavesRitem->baseVertexLocation = wavesRitem->geo->DrawArgs["waterGrid"].BaseVertexLocation;
 	m_wavesRitem = wavesRitem.get();
 	m_ritemLayer[(int)RenderLayer::Transparent].push_back(wavesRitem.get());
 	m_allRenderItems.push_back(std::move(wavesRitem));
@@ -1568,23 +1569,4 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> ShadowDemo::GetStaticSamplers()
 		pointWrap, pointClamp,
 		linearWrap, linearClamp,
 		anisotropicWrap, anisotropicClamp };
-}
-
-float ShadowDemo::GetHillsHeight(float x, float z)const
-{
-	return 0.3f*(z*sinf(0.1f*x) + x*cosf(0.1f*z));
-}
-
-XMFLOAT3 ShadowDemo::GetHillsNormal(float x, float z)const
-{
-	// n = (-df/dx, 1, -df/dz)
-	XMFLOAT3 n(
-		-0.03f*z*cosf(0.1f*x) - 0.3f*cosf(0.1f*z),
-		1.0f,
-		-0.3f*sinf(0.1f*x) + 0.03f*x*sinf(0.1f*z));
-
-	XMVECTOR unitNormal = XMVector3Normalize(XMLoadFloat3(&n));
-	XMStoreFloat3(&n, unitNormal);
-
-	return n;
 }
