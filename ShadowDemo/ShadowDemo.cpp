@@ -7,6 +7,7 @@
 #include "Terrain.h"
 #include "waves.h"
 #include "ShadowMap.h"
+#include "ModelImporter.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -233,6 +234,10 @@ bool ShadowDemo::Initialize()
 	m_waves = std::make_unique<Waves>(500, 128, 1.0f, 0.03f, 4.0f, 0.2f);
 
 	m_pShadowMap = std::make_unique<ShadowMap>(m_pD3dDevice.Get(), 2048, 2048);
+
+	//test
+	ModelImporter importer;
+	importer.LoadModel("..\\Models\\fox\\file.fbx");
 
 	LoadTextures();
 	BuildRootSignature();

@@ -1,17 +1,17 @@
 ﻿  ShadowDemo.cpp
-ShadowDemo.cpp(451): warning C4244: “=”: 从“float”转换到“LONG”，可能丢失数据
-ShadowDemo.cpp(452): warning C4244: “=”: 从“float”转换到“LONG”，可能丢失数据
-ShadowDemo.cpp(1185): warning C4018: “<”: 有符号/无符号不匹配
+ShadowDemo.cpp(455): warning C4244: “=”: 从“float”转换到“LONG”，可能丢失数据
+ShadowDemo.cpp(456): warning C4244: “=”: 从“float”转换到“LONG”，可能丢失数据
+ShadowDemo.cpp(1189): warning C4018: “<”: 有符号/无符号不匹配
 D:\vs2015\VC\include\memory(1630): warning C4244: “参数”: 从“int”转换到“float”，可能丢失数据
-  ShadowDemo.cpp(231): note: 参见对正在编译的函数 模板 实例化“std::unique_ptr<Terrain,std::default_delete<_Ty>> std::make_unique<Terrain,int,int,int,int,float>(int &&,int &&,int &&,int &&,float &&)”的引用
+  ShadowDemo.cpp(232): note: 参见对正在编译的函数 模板 实例化“std::unique_ptr<Terrain,std::default_delete<_Ty>> std::make_unique<Terrain,int,int,int,int,float>(int &&,int &&,int &&,int &&,float &&)”的引用
           with
           [
               _Ty=Terrain
           ]
   正在生成代码
-  12 of 4242 functions ( 0.3%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    17 functions had inline decision re-evaluated but remain unchanged
+d:\github\dx12demo\shadowdemo\modelimporter.h(40): warning C4172: 返回局部变量或临时变量的地址: mat
+d:\github\dx12demo\shadowdemo\modelimporter.cpp(34): warning C4715: “ModelImporter::LoadModel”: 不是所有的控件路径都返回值
+  All 4480 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
   已完成代码的生成
   ShadowDemo.vcxproj -> D:\Github\Dx12Demo\Release\ShadowDemo.exe
   ShadowDemo.vcxproj -> D:\Github\Dx12Demo\Release\ShadowDemo.pdb (Full PDB)

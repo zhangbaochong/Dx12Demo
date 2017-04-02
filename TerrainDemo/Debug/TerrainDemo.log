@@ -1,8 +1,0 @@
-﻿  TerrainDemo.cpp
-d:\vsprojects\dx12demo\terraindemo\terraindemo.cpp(338): warning C4244: “=”: 从“float”转换到“LONG”，可能丢失数据
-d:\vsprojects\dx12demo\terraindemo\terraindemo.cpp(339): warning C4244: “=”: 从“float”转换到“LONG”，可能丢失数据
-d:\vsprojects\dx12demo\terraindemo\terraindemo.cpp(725): warning C4244: “参数”: 从“std::streamoff”转换到“unsigned int”，可能丢失数据
-d:\vsprojects\dx12demo\terraindemo\terraindemo.cpp(768): warning C4018: “<”: 有符号/无符号不匹配
-d:\vsprojects\dx12demo\terraindemo\terraindemo.cpp(771): warning C4018: “<”: 有符号/无符号不匹配
-  TerrainDemo.vcxproj -> D:\VsProjects\Dx12Demo\Debug\TerrainDemo.exe
-  TerrainDemo.vcxproj -> D:\VsProjects\Dx12Demo\Debug\TerrainDemo.pdb (Full PDB)
