@@ -4,6 +4,7 @@
 #include "Common\GeometryGenerator.h"
 #include "Common\Camera.h"
 #include "FrameResource.h"
+#include "Terrain.h"
 #include "waves.h"
 #include "ShadowMap.h"
 
@@ -96,9 +97,6 @@ private:
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 
-	float GetHillsHeight(float x, float z)const;
-	XMFLOAT3 GetHillsNormal(float x, float z)const;
-
 private:
 	std::vector<std::unique_ptr<FrameResource>> m_frameResources;
 	FrameResource* m_pCurrFrameResource = nullptr;
@@ -137,6 +135,9 @@ private:
 	PassConstants m_mainPassCB;// index 0 of pass cbuffer.
 	PassConstants mShadowPassCB;// index 1 of pass cbuffer.
 
+	//地形
+	std::unique_ptr<Terrain> m_pTerrain;
+
 	//波纹
 	std::unique_ptr<Waves> m_waves;
 
@@ -167,34 +168,6 @@ private:
 	XMFLOAT4X4 m_proj = MathHelper::Identity4x4();
 	POINT m_lastMousePos;
 	Camera m_camera;
-
-	//高度图相关的变量函数
-private:
-	std::vector<float>	m_heightInfos;		//高度图高度信息
-	int		m_cellsPerRow;					//每行单元格数
-	int		m_cellsPerCol;					//每列单元格数
-	int		m_verticesPerRow;				//每行顶点数
-	int		m_verticesPerCol;				//每列顶点数
-	int		m_numsVertices;					//顶点总数
-	float	m_width;						//地形宽度
-	float	m_height;						//地形高度
-	float	m_heightScale;					//高度缩放系数
-
-	//不同地形对应的高度，以便给予不同的材质贴图shader等等
-	float   m_waterHeight;
-	float	m_groundHeight;
-	float   m_roadHeight;
-	float   m_grassHeight;
-	
-	
-	std::vector<Vertex>		m_vertices;		//顶点集合
-	std::vector<UINT>		m_indices;		//索引集合
-	std::unordered_map<std::string, std::vector<Vertex>>  m_vertexItems;	//不同地形的顶点集合
-	std::unordered_map<std::string, std::vector<UINT>> m_indexItems;		//不同地形的索引集合
-
-	bool ReadRawFile(std::string filePath);										//从高度图读取高度信息
-	bool InitTerrain(float width, float height, UINT m, UINT n, float scale);	//初始化地形
-	void ComputeNomal(Vertex& v1, Vertex& v2, Vertex& v3, XMFLOAT3& normal);	//计算法线
 };
 
 //main函数
@@ -235,8 +208,8 @@ ShadowDemo::ShadowDemo(HINSTANCE hInstance)
 
 	m_sceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	//m_sceneBounds.Radius = sqrtf(10.0f*10.0f + 15.0f*15.0f);
-	//包围球的半径，包围球应该包含整个场景
-	m_sceneBounds.Radius = 500.f / 2 + 10.f;
+	//包围球的半径，包围球应该包含整个场景,所以球的直径应该等于场地对角线 场地长宽现在为500，对角线为500*1.414
+	m_sceneBounds.Radius = 500.f*1.414f / 2 + 2.f;
 }
 
 ShadowDemo::~ShadowDemo()
@@ -255,15 +228,12 @@ bool ShadowDemo::Initialize()
 
 	m_cbvSrvDescriptorSize = m_pD3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
+	m_pTerrain = std::make_unique<Terrain>(500, 500, 511, 511, 1.f);
+
 	m_waves = std::make_unique<Waves>(500, 128, 1.0f, 0.03f, 4.0f, 0.2f);
 
 	m_pShadowMap = std::make_unique<ShadowMap>(m_pD3dDevice.Get(), 2048, 2048);
 
-	//初始化高度图地形
-	if (!ReadRawFile("..\\Textures\\terrain_ps2.raw"))
-		return false;
-	if (!InitTerrain(500, 500, 511, 511, 1.f))
-		return false;
 	LoadTextures();
 	BuildRootSignature();
 	BuildDescriptorHeaps();
@@ -924,7 +894,7 @@ void ShadowDemo::BuildShadersAndInputLayout()
 
 //创建网格
 void ShadowDemo::BuildTerrainGeometry()
-{	
+{	/**
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 20, 20);
 
@@ -1049,7 +1019,133 @@ void ShadowDemo::BuildTerrainGeometry()
 	geo->DrawArgs["waterBottom"] = waterSubmesh;
 	geo->DrawArgs["sphere"] = sphereSubmesh;
 
-	m_geometries[geo->Name] = std::move(geo);	
+	m_geometries[geo->Name] = std::move(geo);	*/
+
+	GeometryGenerator geoGen;
+	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 20, 20);
+
+	//create vertex offset
+	UINT groundVertexOffset = 0;
+	UINT grassVertexOffset = m_pTerrain->m_vertexItems["ground"].size();
+	UINT roadVertexOffset = grassVertexOffset + m_pTerrain->m_vertexItems["grass"].size();
+	UINT waterVertexOffset = roadVertexOffset + m_pTerrain->m_vertexItems["road"].size();
+	UINT sphereVertexOffset = waterVertexOffset + m_pTerrain->m_vertexItems["waterBottom"].size();
+
+	//create start index
+	UINT groundIndexOffset = 0;
+	UINT grassIndexOffset = m_pTerrain->m_indexItems["ground"].size();
+	UINT roadIndexOffset = grassIndexOffset + m_pTerrain->m_indexItems["grass"].size();
+	UINT waterIndexOffset = roadIndexOffset + m_pTerrain->m_indexItems["road"].size();
+	UINT sphereIndexOffset = waterIndexOffset + m_pTerrain->m_indexItems["waterBottom"].size();
+
+	SubmeshGeometry groundSubmesh;
+	groundSubmesh.IndexCount = m_pTerrain->m_indexItems["ground"].size();
+	groundSubmesh.StartIndexLocation = groundIndexOffset;
+	groundSubmesh.BaseVertexLocation = groundVertexOffset;
+
+	SubmeshGeometry grassSubmesh;
+	grassSubmesh.IndexCount = m_pTerrain->m_indexItems["grass"].size();
+	grassSubmesh.StartIndexLocation = grassIndexOffset;
+	grassSubmesh.BaseVertexLocation = grassVertexOffset;
+
+	SubmeshGeometry roadSubmesh;
+	roadSubmesh.IndexCount = m_pTerrain->m_indexItems["road"].size();
+	roadSubmesh.StartIndexLocation = roadIndexOffset;
+	roadSubmesh.BaseVertexLocation = roadVertexOffset;
+
+	SubmeshGeometry waterSubmesh;
+	waterSubmesh.IndexCount = m_pTerrain->m_indexItems["waterBottom"].size();
+	waterSubmesh.StartIndexLocation = waterIndexOffset;
+	waterSubmesh.BaseVertexLocation = waterVertexOffset;
+
+	SubmeshGeometry sphereSubmesh;
+	sphereSubmesh.IndexCount = (UINT)sphere.Indices32.size();
+	sphereSubmesh.StartIndexLocation = sphereIndexOffset;
+	sphereSubmesh.BaseVertexLocation = sphereVertexOffset;
+
+	auto totalVertexCount =
+		m_pTerrain->m_vertexItems["ground"].size() + m_pTerrain->m_vertexItems["grass"].size()
+		+ m_pTerrain->m_vertexItems["road"].size() + m_pTerrain->m_vertexItems["waterBottom"].size() + sphere.Vertices.size();
+
+	std::vector<Vertex> vertices(totalVertexCount);
+	UINT k = 0;
+	for (size_t i = 0; i < m_pTerrain->m_vertexItems["ground"].size(); ++i, ++k)
+	{
+		vertices[k].Pos = m_pTerrain->m_vertexItems["ground"][i].Pos;
+		vertices[k].Normal = m_pTerrain->m_vertexItems["ground"][i].Normal;
+		vertices[k].TexC = m_pTerrain->m_vertexItems["ground"][i].TexC;
+		vertices[k].TangentU = m_pTerrain->m_vertexItems["ground"][i].TangentU;
+	}
+
+	for (size_t i = 0; i < m_pTerrain->m_vertexItems["grass"].size(); ++i, ++k)
+	{
+		vertices[k].Pos = m_pTerrain->m_vertexItems["grass"][i].Pos;
+		vertices[k].Normal = m_pTerrain->m_vertexItems["grass"][i].Normal;
+		vertices[k].TexC = m_pTerrain->m_vertexItems["grass"][i].TexC;
+		vertices[k].TangentU = m_pTerrain->m_vertexItems["grass"][i].TangentU;
+	}
+
+	for (size_t i = 0; i < m_pTerrain->m_vertexItems["road"].size(); ++i, ++k)
+	{
+		vertices[k].Pos = m_pTerrain->m_vertexItems["road"][i].Pos;
+		vertices[k].Normal = m_pTerrain->m_vertexItems["road"][i].Normal;
+		vertices[k].TexC = m_pTerrain->m_vertexItems["road"][i].TexC;
+		vertices[k].TangentU = m_pTerrain->m_vertexItems["road"][i].TangentU;
+	}
+
+	for (size_t i = 0; i < m_pTerrain->m_vertexItems["waterBottom"].size(); ++i, ++k)
+	{
+		vertices[k].Pos = m_pTerrain->m_vertexItems["waterBottom"][i].Pos;
+		vertices[k].Normal = m_pTerrain->m_vertexItems["waterBottom"][i].Normal;
+		vertices[k].TexC = m_pTerrain->m_vertexItems["waterBottom"][i].TexC;
+		vertices[k].TangentU = m_pTerrain->m_vertexItems["waterBottom"][i].TangentU;
+	}
+
+	for (size_t i = 0; i < sphere.Vertices.size(); ++i, ++k)
+	{
+		vertices[k].Pos = sphere.Vertices[i].Position;
+		vertices[k].Normal = sphere.Vertices[i].Normal;
+		vertices[k].TexC = sphere.Vertices[i].TexC;
+		vertices[k].TangentU = sphere.Vertices[i].TangentU;
+	}
+
+	std::vector<UINT> indices;
+	indices.insert(indices.end(), m_pTerrain->m_indexItems["ground"].begin(), m_pTerrain->m_indexItems["ground"].end());
+	indices.insert(indices.end(), m_pTerrain->m_indexItems["grass"].begin(), m_pTerrain->m_indexItems["grass"].end());
+	indices.insert(indices.end(), m_pTerrain->m_indexItems["road"].begin(), m_pTerrain->m_indexItems["road"].end());
+	indices.insert(indices.end(), m_pTerrain->m_indexItems["waterBottom"].begin(), m_pTerrain->m_indexItems["waterBottom"].end());
+	indices.insert(indices.end(), std::begin(sphere.Indices32), std::end(sphere.Indices32));
+
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(UINT);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = "terrainGeo";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(m_pD3dDevice.Get(),
+		m_pCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(m_pD3dDevice.Get(),
+		m_pCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+	geo->VertexByteStride = sizeof(Vertex);
+	geo->VertexBufferByteSize = vbByteSize;
+	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	geo->DrawArgs["ground"] = groundSubmesh;
+	geo->DrawArgs["grass"] = grassSubmesh;
+	geo->DrawArgs["road"] = roadSubmesh;
+	geo->DrawArgs["waterBottom"] = waterSubmesh;
+	geo->DrawArgs["sphere"] = sphereSubmesh;
+
+	m_geometries[geo->Name] = std::move(geo);
 }
 
 void ShadowDemo::BuildShapeGeometry()
@@ -1512,373 +1608,6 @@ void ShadowDemo::DrawSceneToShadowMap()
 	// Change back to GENERIC_READ so we can read the texture in a shader.
 	m_pCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_pShadowMap->Resource(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
-}
-
-//从.raw文件读取高度图信息
-bool ShadowDemo::ReadRawFile(std::string filePath)
-{
-	std::ifstream inFile;
-	//二进制方式打开文件
-	inFile.open(filePath.c_str(), std::ios::binary);
-	//文件指针移动到末尾
-	inFile.seekg(0, std::ios::end);
-	//大小为当前缓冲区大小
-	std::vector<BYTE> inData(inFile.tellg());
-	//文件指针移动到开头
-	inFile.seekg(std::ios::beg);
-	//读取高度信息
-	inFile.read((char*)&inData[0], inData.size());
-	inFile.close();
-
-	m_heightInfos.resize(inData.size());
-	for (unsigned int i = 0; i < inData.size(); ++i)
-	{
-		m_heightInfos[i] = inData[i];
-	}
-	
-	return true;
-}
-
-//初始化地形,重点算出不同地形对应的顶点索引等等
-bool ShadowDemo::InitTerrain(float width, float height, UINT m, UINT n, float scale)
-{
-	m_cellsPerRow = m;
-	m_cellsPerCol = n;
-	m_verticesPerRow = m + 1;
-	m_verticesPerCol = n + 1;
-	m_numsVertices = m_verticesPerRow*m_verticesPerCol;
-	m_width = width;
-	m_height = height;
-	m_heightScale = scale;
-
-	//得到缩放后的高度
-	for (auto& item : m_heightInfos)
-	{
-		item *= m_heightScale;
-	}
-	
-	//起始x z坐标
-	float oX = -width * 0.5f;
-	float oZ = height * 0.5f;
-	//每一格坐标变化
-	float dx = width / m;
-	float dz = height / n;
-
-	m_vertices.resize(m_numsVertices);
-
-	//计算顶点
-	for (UINT i = 0; i < m_verticesPerCol; ++i)
-	{
-		float tempZ = oZ - dz * i;
-		for (UINT j = 0; j < m_verticesPerRow; ++j)
-		{
-			UINT index = m_verticesPerRow * i + j;
-			m_vertices[index].Pos.x = oX + dx * j;
-			m_vertices[index].Pos.y = m_heightInfos[index];
-			m_vertices[index].Pos.z = tempZ;
-			m_vertices[index].TexC = XMFLOAT2(dx*i, dx*j);
-					
-		}
-	}
-	
-	//ground
-	{
-		//计算ground顶点
-		UINT groundWidth = 225;
-		UINT groundHeight = 512;
-		m_vertexItems["ground"].resize(groundWidth * groundHeight);
-		//共512行
-		for (UINT i = 0; i < groundHeight; ++i)
-		{
-			float tempZ = oZ - dz * i;
-			//共225列
-			for (UINT j = 0; j < groundWidth; ++j)
-			{
-				UINT index = groundWidth * i + j;
-				m_vertexItems["ground"][index].Pos.x = oX + dx * j;
-				m_vertexItems["ground"][index].Pos.y = m_heightInfos[m_verticesPerRow*i + j];
-				m_vertexItems["ground"][index].Pos.z = tempZ;
-				m_vertexItems["ground"][index].TexC = XMFLOAT2(dx*i, dx*j);
-				m_vertexItems["ground"][index].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
-			}
-		}
-
-		//计算ground索引
-		m_indexItems["ground"].resize(6 * (groundWidth - 1)*(groundHeight - 1));
-		UINT tmp = 0;
-		for (UINT i = 0; i < groundHeight - 1; ++i)
-		{
-			for (UINT j = 0; j < groundWidth - 1; ++j)
-			{
-				m_indexItems["ground"][tmp] = i * groundWidth + j;
-				m_indexItems["ground"][tmp + 1] = i * groundWidth + j + 1;
-				m_indexItems["ground"][tmp + 2] = (i + 1) * groundWidth + j;
-				//计算法线
-				XMFLOAT3 temp;
-				ComputeNomal(m_vertexItems["ground"][m_indexItems["ground"][tmp]],
-					m_vertexItems["ground"][m_indexItems["ground"][tmp + 1]],
-					m_vertexItems["ground"][m_indexItems["ground"][tmp + 2]], temp);
-				m_vertexItems["ground"][m_indexItems["ground"][tmp]].Normal = temp;
-				m_vertexItems["ground"][m_indexItems["ground"][tmp + 1]].Normal = temp;
-				m_vertexItems["ground"][m_indexItems["ground"][tmp + 2]].Normal = temp;
-
-
-				m_indexItems["ground"][tmp + 3] = i * groundWidth + j + 1;
-				m_indexItems["ground"][tmp + 4] = (i + 1) * groundWidth + j + 1;
-				m_indexItems["ground"][tmp + 5] = (i + 1) * groundWidth + j;
-				ComputeNomal(m_vertexItems["ground"][m_indexItems["ground"][tmp + 3]],
-					m_vertexItems["ground"][m_indexItems["ground"][tmp + 4]],
-					m_vertexItems["ground"][m_indexItems["ground"][tmp + 5]], temp);
-				m_vertexItems["ground"][m_indexItems["ground"][tmp + 3]].Normal = temp;
-				m_vertexItems["ground"][m_indexItems["ground"][tmp + 4]].Normal = temp;
-				m_vertexItems["ground"][m_indexItems["ground"][tmp + 5]].Normal = temp;
-
-				tmp += 6;
-			}
-		}
-
-	}
-
-	//grass
-	{
-		//计算grass顶点
-		UINT grassWidth = 225;
-		UINT grassHeight = 512;
-		m_vertexItems["grass"].resize(grassWidth * grassHeight);
-		UINT offsetX = 287;
-		//共512行
-		for (UINT i = 0; i < grassHeight; ++i)
-		{
-			float tempZ = oZ - dz * i;
-			//共225列
-			for (UINT j = 0; j < grassWidth; ++j)
-			{
-				UINT index = grassWidth * i + j;
-				m_vertexItems["grass"][index].Pos.x = oX + dx * (j + offsetX);
-				m_vertexItems["grass"][index].Pos.y = m_heightInfos[m_verticesPerRow*i + (j + offsetX)];
-				m_vertexItems["grass"][index].Pos.z = tempZ;
-				m_vertexItems["grass"][index].TexC = XMFLOAT2(dx*i, dx*j);
-				m_vertexItems["grass"][index].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
-			}
-		}
-
-		//计算grass索引
-		m_indexItems["grass"].resize(6 * (grassWidth - 1)*(grassHeight - 1));
-		UINT tmp = 0;
-		for (UINT i = 0; i < grassHeight - 1; ++i)
-		{
-			for (UINT j = 0; j < grassWidth - 1; ++j)
-			{
-				m_indexItems["grass"][tmp] = i * grassWidth + j;
-				m_indexItems["grass"][tmp + 1] = i * grassWidth + j + 1;
-				m_indexItems["grass"][tmp + 2] = (i + 1) * grassWidth + j;
-				//计算法线
-				XMFLOAT3 temp;
-				ComputeNomal(m_vertexItems["grass"][m_indexItems["grass"][tmp]],
-					m_vertexItems["grass"][m_indexItems["grass"][tmp + 1]],
-					m_vertexItems["grass"][m_indexItems["grass"][tmp + 2]], temp);
-				m_vertexItems["grass"][m_indexItems["grass"][tmp]].Normal = temp;
-				m_vertexItems["grass"][m_indexItems["grass"][tmp + 1]].Normal = temp;
-				m_vertexItems["grass"][m_indexItems["grass"][tmp + 2]].Normal = temp;
-
-
-				m_indexItems["grass"][tmp + 3] = i * grassWidth + j + 1;
-				m_indexItems["grass"][tmp + 4] = (i + 1) * grassWidth + j + 1;
-				m_indexItems["grass"][tmp + 5] = (i + 1) * grassWidth + j;
-				ComputeNomal(m_vertexItems["grass"][m_indexItems["grass"][tmp + 3]],
-					m_vertexItems["grass"][m_indexItems["grass"][tmp + 4]],
-					m_vertexItems["grass"][m_indexItems["grass"][tmp + 5]], temp);
-				m_vertexItems["grass"][m_indexItems["grass"][tmp + 3]].Normal = temp;
-				m_vertexItems["grass"][m_indexItems["grass"][tmp + 4]].Normal = temp;
-				m_vertexItems["grass"][m_indexItems["grass"][tmp + 5]].Normal = temp;
-
-				tmp += 6;
-			}
-		}
-	}
-
-	//water
-	{
-		//计算water顶点
-		UINT waterWidth = 64;
-		UINT waterHeight = 512;
-		m_vertexItems["waterBottom"].resize(waterWidth * waterHeight);
-		UINT offsetX = 224;
-		//共512行
-		for (UINT i = 0; i < waterHeight; ++i)
-		{
-			float tempZ = oZ - dz * i;
-			//共64列
-			for (UINT j = 0; j < waterWidth; ++j)
-			{
-				UINT index = waterWidth * i + j;
-				m_vertexItems["waterBottom"][index].Pos.x = oX + dx * (j + offsetX);
-				m_vertexItems["waterBottom"][index].Pos.y = m_heightInfos[m_verticesPerRow*i + (j + offsetX)];
-				m_vertexItems["waterBottom"][index].Pos.z = tempZ;
-				m_vertexItems["waterBottom"][index].TexC = XMFLOAT2(dx*i, dx*j);
-				m_vertexItems["waterBottom"][index].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
-			}
-		}
-		//计算waterBottom索引
-		m_indexItems["waterBottom"].resize(6 * (waterWidth - 1)*(waterHeight - 1));
-		UINT tmp = 0;
-		for (UINT i = 0; i < waterHeight - 1; ++i)
-		{
-			for (UINT j = 0; j < waterWidth - 1; ++j)
-			{
-				m_indexItems["waterBottom"][tmp] = i * waterWidth + j;
-				m_indexItems["waterBottom"][tmp + 1] = i * waterWidth + j + 1;
-				m_indexItems["waterBottom"][tmp + 2] = (i + 1) * waterWidth + j;
-				//计算法线
-				XMFLOAT3 temp;
-				ComputeNomal(m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp]],
-					m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 1]],
-					m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 2]], temp);
-				m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp]].Normal = temp;
-				m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 1]].Normal = temp;
-				m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 2]].Normal = temp;
-
-
-				m_indexItems["waterBottom"][tmp + 3] = i * waterWidth + j + 1;
-				m_indexItems["waterBottom"][tmp + 4] = (i + 1) * waterWidth + j + 1;
-				m_indexItems["waterBottom"][tmp + 5] = (i + 1) * waterWidth + j;
-				ComputeNomal(m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 3]],
-					m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 4]],
-					m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 5]], temp);
-				m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 3]].Normal = temp;
-				m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 4]].Normal = temp;
-				m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 5]].Normal = temp;
-
-				tmp += 6;
-			}
-		}
-	}
-
-	//road
-	{
-		//计算road顶点 以water为界分为两块左边和右边
-		UINT roadWidth = 224;//每一边宽度均为224
-		UINT roadHeight = 64;
-		m_vertexItems["road"].resize(2 * roadWidth * roadHeight);
-		
-		//oZ = height*0.5,这里需要修正为1/16*height,即offsetZ为-7/16*height;
-		float offsetZ = -7.f / 16.f*height;
-		UINT rightOffsetX = 288;
-		UINT offsetZ_PixelNum = 224;
-		//先计算左边
-		for (UINT i = 0; i < roadHeight; ++i)
-		{
-			float tempZ = oZ - dz * i + offsetZ;
-			for (UINT j = 0; j < roadWidth; ++j)
-			{
-				UINT index = roadWidth * i + j;
-				m_vertexItems["road"][index].Pos.x = oX + dx * (j + rightOffsetX);
-				m_vertexItems["road"][index].Pos.y = m_heightInfos[m_verticesPerRow*(i + offsetZ_PixelNum) + j] + 0.1f;
-				m_vertexItems["road"][index].Pos.z = tempZ;
-				m_vertexItems["road"][index].TexC = XMFLOAT2(dx*i, dx*j);
-				m_vertexItems["road"][index].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
-			}
-		}
-
-		int startVertexIndex = roadWidth * (roadHeight - 1) + roadWidth + 1;
-		//再计算右边
-		for (UINT i = 0; i < roadHeight; ++i)
-		{
-			float tempZ = oZ - dz * i + offsetZ;
-			for (UINT j = 0; j < roadWidth; ++j)
-			{
-				UINT index = startVertexIndex + roadWidth * i + j;
-				m_vertexItems["road"][index].Pos.x = oX + dx * j;
-				m_vertexItems["road"][index].Pos.y = m_heightInfos[m_verticesPerRow*(i + offsetZ_PixelNum) + j 
-					+ rightOffsetX ] + 0.1f;
-				m_vertexItems["road"][index].Pos.z = tempZ;
-				m_vertexItems["road"][index].TexC = XMFLOAT2(dx*i, dx*j);
-				m_vertexItems["road"][index].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
-			}
-		}
-
-
-		//计算road索引 
-		m_indexItems["road"].resize(2 * 6 * (roadWidth - 1)*(roadHeight - 1));
-		UINT tmp = 0;
-		//左边
-		for (UINT i = 0; i < roadHeight - 1; ++i)
-		{
-			for (UINT j = 0; j < roadWidth - 1; ++j)
-			{
-				m_indexItems["road"][tmp] = i * roadWidth + j;
-				m_indexItems["road"][tmp + 1] = i * roadWidth + j + 1;
-				m_indexItems["road"][tmp + 2] = (i + 1) * roadWidth + j;
-				//计算法线
-				XMFLOAT3 temp;
-				ComputeNomal(m_vertexItems["road"][m_indexItems["road"][tmp]],
-					m_vertexItems["road"][m_indexItems["road"][tmp + 1]],
-					m_vertexItems["road"][m_indexItems["road"][tmp + 2]], temp);
-				m_vertexItems["road"][m_indexItems["road"][tmp]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 1]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 2]].Normal = temp;
-
-
-				m_indexItems["road"][tmp + 3] = i * roadWidth + j + 1;
-				m_indexItems["road"][tmp + 4] = (i + 1) * roadWidth + j + 1;
-				m_indexItems["road"][tmp + 5] = (i + 1) * roadWidth + j;
-				ComputeNomal(m_vertexItems["road"][m_indexItems["road"][tmp + 3]],
-					m_vertexItems["road"][m_indexItems["road"][tmp + 4]],
-					m_vertexItems["road"][m_indexItems["road"][tmp + 5]], temp);
-				m_vertexItems["road"][m_indexItems["road"][tmp + 3]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 4]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 5]].Normal = temp;
-
-				tmp += 6;
-			}
-		}
-
-		int startIndex = roadWidth * (roadHeight - 1) + roadWidth + 1;
-		//右边
-		for (UINT i = 0; i < roadHeight - 1; ++i)
-		{
-			for (UINT j = 0; j < roadWidth - 1; ++j)
-			{
-				m_indexItems["road"][tmp] = startIndex + i * roadWidth + j;
-				m_indexItems["road"][tmp + 1] = startIndex + i * roadWidth + j + 1;
-				m_indexItems["road"][tmp + 2] = startIndex + (i + 1) * roadWidth + j;
-				//计算法线
-				XMFLOAT3 temp;
-				ComputeNomal(m_vertexItems["road"][m_indexItems["road"][tmp]],
-					m_vertexItems["road"][m_indexItems["road"][tmp + 1]],
-					m_vertexItems["road"][m_indexItems["road"][tmp + 2]], temp);
-				m_vertexItems["road"][m_indexItems["road"][tmp]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 1]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 2]].Normal = temp;
-
-
-				m_indexItems["road"][tmp + 3] = startIndex + i * roadWidth + j + 1;
-				m_indexItems["road"][tmp + 4] = startIndex + (i + 1) * roadWidth + j + 1;
-				m_indexItems["road"][tmp + 5] = startIndex + (i + 1) * roadWidth + j;
-				ComputeNomal(m_vertexItems["road"][m_indexItems["road"][tmp + 3]],
-					m_vertexItems["road"][m_indexItems["road"][tmp + 4]],
-					m_vertexItems["road"][m_indexItems["road"][tmp + 5]], temp);
-				m_vertexItems["road"][m_indexItems["road"][tmp + 3]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 4]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 5]].Normal = temp;
-
-				tmp += 6;
-			}
-		}
-	}
-
-	return true;
-}
-
-//计算法线
-void ShadowDemo::ComputeNomal(Vertex& v1, Vertex& v2, Vertex& v3, XMFLOAT3& normal)
-{
-	XMFLOAT3 f1(v2.Pos.x - v1.Pos.x, v2.Pos.y - v1.Pos.y, v2.Pos.z - v1.Pos.z);
-	XMFLOAT3 f2(v3.Pos.x - v1.Pos.x, v3.Pos.y - v1.Pos.y, v3.Pos.z - v1.Pos.z);
-	XMVECTOR vec1 = XMLoadFloat3(&f1);
-	XMVECTOR vec2 = XMLoadFloat3(&f2);
-	XMVECTOR temp = XMVector3Normalize(XMVector3Cross(vec1, vec2));
-	XMStoreFloat3(&normal, temp);
 }
 
 //定义一些常用的纹理采样方式
