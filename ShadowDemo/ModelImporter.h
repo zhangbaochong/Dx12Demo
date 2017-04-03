@@ -30,14 +30,14 @@ public:
 		ModelMaterial() = default;
 		ModelMaterial& operator=(const ModelMaterial& rhs)
 		{
-			ModelMaterial mat;
-			mat.Name = this->Name;
-			mat.DiffuseAlbedo = this->DiffuseAlbedo;
-			mat.FresnelR0 = this->FresnelR0;
-			mat.Roughness = this->Roughness;
-			mat.DiffuseMapName = this->DiffuseMapName;
-			mat.NormalMapName = this->NormalMapName;
-			return mat;
+			this->Name = rhs.Name;
+			this->DiffuseAlbedo = rhs.DiffuseAlbedo;
+			this->FresnelR0 = rhs.FresnelR0;
+			this->Roughness = rhs.Roughness;
+			this->DiffuseMapName = rhs.DiffuseMapName;
+			this->NormalMapName = rhs.NormalMapName;
+			return *this;
+		
 		}
 
 		std::string Name;

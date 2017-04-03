@@ -58,6 +58,7 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				m_vertexItems["ground"][index].Pos.z = tempZ;
 				m_vertexItems["ground"][index].TexC = XMFLOAT2(dx*i, dx*j);
 				m_vertexItems["ground"][index].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
+				m_vertexItems["ground"][index].Normal = XMFLOAT3(0.f, 0.f, 0.f);
 			}
 		}
 
@@ -76,10 +77,10 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				ComputeNomal(m_vertexItems["ground"][m_indexItems["ground"][tmp]],
 					m_vertexItems["ground"][m_indexItems["ground"][tmp + 1]],
 					m_vertexItems["ground"][m_indexItems["ground"][tmp + 2]], temp);
-				m_vertexItems["ground"][m_indexItems["ground"][tmp]].Normal = temp;
-				m_vertexItems["ground"][m_indexItems["ground"][tmp + 1]].Normal = temp;
-				m_vertexItems["ground"][m_indexItems["ground"][tmp + 2]].Normal = temp;
 
+				XMFloat3Add(m_vertexItems["ground"][m_indexItems["ground"][tmp]].Normal, temp);
+				XMFloat3Add(m_vertexItems["ground"][m_indexItems["ground"][tmp + 1]].Normal, temp);
+				XMFloat3Add(m_vertexItems["ground"][m_indexItems["ground"][tmp + 2]].Normal, temp);
 
 				m_indexItems["ground"][tmp + 3] = i * groundWidth + j + 1;
 				m_indexItems["ground"][tmp + 4] = (i + 1) * groundWidth + j + 1;
@@ -87,14 +88,23 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				ComputeNomal(m_vertexItems["ground"][m_indexItems["ground"][tmp + 3]],
 					m_vertexItems["ground"][m_indexItems["ground"][tmp + 4]],
 					m_vertexItems["ground"][m_indexItems["ground"][tmp + 5]], temp);
-				m_vertexItems["ground"][m_indexItems["ground"][tmp + 3]].Normal = temp;
-				m_vertexItems["ground"][m_indexItems["ground"][tmp + 4]].Normal = temp;
-				m_vertexItems["ground"][m_indexItems["ground"][tmp + 5]].Normal = temp;
+
+				XMFloat3Add(m_vertexItems["ground"][m_indexItems["ground"][tmp + 3]].Normal, temp);
+				XMFloat3Add(m_vertexItems["ground"][m_indexItems["ground"][tmp + 4]].Normal, temp);
+				XMFloat3Add(m_vertexItems["ground"][m_indexItems["ground"][tmp + 5]].Normal, temp);
 
 				tmp += 6;
 			}
 		}
 
+
+		//归一化所有法线,计算切线
+		for (int i = 0; i < m_vertexItems["ground"].size(); ++i)
+		{
+			XMFloat3Normalize(m_vertexItems["ground"][i].Normal);
+			CalcTangent(m_vertexItems["ground"][i].TangentU, m_vertexItems["ground"][i].Normal);
+			
+		}
 	}
 
 	//grass
@@ -117,6 +127,7 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				m_vertexItems["grass"][index].Pos.z = tempZ;
 				m_vertexItems["grass"][index].TexC = XMFLOAT2(dx*i, dx*j);
 				m_vertexItems["grass"][index].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
+				m_vertexItems["grass"][index].Normal = XMFLOAT3(0.f, 0.f, 0.f);
 			}
 		}
 
@@ -135,9 +146,10 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				ComputeNomal(m_vertexItems["grass"][m_indexItems["grass"][tmp]],
 					m_vertexItems["grass"][m_indexItems["grass"][tmp + 1]],
 					m_vertexItems["grass"][m_indexItems["grass"][tmp + 2]], temp);
-				m_vertexItems["grass"][m_indexItems["grass"][tmp]].Normal = temp;
-				m_vertexItems["grass"][m_indexItems["grass"][tmp + 1]].Normal = temp;
-				m_vertexItems["grass"][m_indexItems["grass"][tmp + 2]].Normal = temp;
+
+				XMFloat3Add(m_vertexItems["grass"][m_indexItems["grass"][tmp]].Normal, temp);
+				XMFloat3Add(m_vertexItems["grass"][m_indexItems["grass"][tmp + 1]].Normal, temp);
+				XMFloat3Add(m_vertexItems["grass"][m_indexItems["grass"][tmp + 2]].Normal, temp);
 
 
 				m_indexItems["grass"][tmp + 3] = i * grassWidth + j + 1;
@@ -146,12 +158,20 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				ComputeNomal(m_vertexItems["grass"][m_indexItems["grass"][tmp + 3]],
 					m_vertexItems["grass"][m_indexItems["grass"][tmp + 4]],
 					m_vertexItems["grass"][m_indexItems["grass"][tmp + 5]], temp);
-				m_vertexItems["grass"][m_indexItems["grass"][tmp + 3]].Normal = temp;
-				m_vertexItems["grass"][m_indexItems["grass"][tmp + 4]].Normal = temp;
-				m_vertexItems["grass"][m_indexItems["grass"][tmp + 5]].Normal = temp;
+
+				XMFloat3Add(m_vertexItems["grass"][m_indexItems["grass"][tmp + 3]].Normal, temp);
+				XMFloat3Add(m_vertexItems["grass"][m_indexItems["grass"][tmp + 4]].Normal, temp);
+				XMFloat3Add(m_vertexItems["grass"][m_indexItems["grass"][tmp + 5]].Normal, temp);
 
 				tmp += 6;
 			}
+		}
+
+		//归一化所有法线
+		for (int i = 0; i < m_vertexItems["grass"].size(); ++i)
+		{
+			XMFloat3Normalize(m_vertexItems["grass"][i].Normal);
+			CalcTangent(m_vertexItems["grass"][i].TangentU, m_vertexItems["grass"][i].Normal);
 		}
 	}
 
@@ -175,6 +195,7 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				m_vertexItems["waterBottom"][index].Pos.z = tempZ;
 				m_vertexItems["waterBottom"][index].TexC = XMFLOAT2(dx*i, dx*j);
 				m_vertexItems["waterBottom"][index].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
+				m_vertexItems["waterBottom"][index].Normal = XMFLOAT3(0.f, 0.f, 0.f);
 			}
 		}
 		//计算waterBottom索引
@@ -192,9 +213,9 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				ComputeNomal(m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp]],
 					m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 1]],
 					m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 2]], temp);
-				m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp]].Normal = temp;
-				m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 1]].Normal = temp;
-				m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 2]].Normal = temp;
+				XMFloat3Add(m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp]].Normal, temp);
+				XMFloat3Add(m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 1]].Normal, temp);
+				XMFloat3Add(m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 2]].Normal, temp);
 
 
 				m_indexItems["waterBottom"][tmp + 3] = i * waterWidth + j + 1;
@@ -203,12 +224,19 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				ComputeNomal(m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 3]],
 					m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 4]],
 					m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 5]], temp);
-				m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 3]].Normal = temp;
-				m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 4]].Normal = temp;
-				m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 5]].Normal = temp;
+				XMFloat3Add(m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 3]].Normal, temp);
+				XMFloat3Add(m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 4]].Normal, temp);
+				XMFloat3Add(m_vertexItems["waterBottom"][m_indexItems["waterBottom"][tmp + 5]].Normal, temp);
 
 				tmp += 6;
 			}
+		}
+
+		//归一化所有法线
+		for (int i = 0; i < m_vertexItems["waterBottom"].size(); ++i)
+		{
+			XMFloat3Normalize(m_vertexItems["waterBottom"][i].Normal);
+			CalcTangent(m_vertexItems["waterBottom"][i].TangentU, m_vertexItems["waterBottom"][i].Normal);
 		}
 	}
 
@@ -235,6 +263,7 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				m_vertexItems["road"][index].Pos.z = tempZ;
 				m_vertexItems["road"][index].TexC = XMFLOAT2(dx*i, dx*j);
 				m_vertexItems["road"][index].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
+				m_vertexItems["road"][index].Normal = XMFLOAT3(0.f, 0.f, 0.f);
 			}
 		}
 
@@ -252,6 +281,7 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				m_vertexItems["road"][index].Pos.z = tempZ;
 				m_vertexItems["road"][index].TexC = XMFLOAT2(dx*i, dx*j);
 				m_vertexItems["road"][index].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
+				m_vertexItems["road"][index].Normal = XMFLOAT3(0.f, 0.f, 0.f);
 			}
 		}
 
@@ -272,9 +302,9 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				ComputeNomal(m_vertexItems["road"][m_indexItems["road"][tmp]],
 					m_vertexItems["road"][m_indexItems["road"][tmp + 1]],
 					m_vertexItems["road"][m_indexItems["road"][tmp + 2]], temp);
-				m_vertexItems["road"][m_indexItems["road"][tmp]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 1]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 2]].Normal = temp;
+				XMFloat3Add(m_vertexItems["road"][m_indexItems["road"][tmp]].Normal, temp);
+				XMFloat3Add(m_vertexItems["road"][m_indexItems["road"][tmp + 1]].Normal, temp);
+				XMFloat3Add(m_vertexItems["road"][m_indexItems["road"][tmp + 2]].Normal, temp);
 
 
 				m_indexItems["road"][tmp + 3] = i * roadWidth + j + 1;
@@ -283,9 +313,9 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				ComputeNomal(m_vertexItems["road"][m_indexItems["road"][tmp + 3]],
 					m_vertexItems["road"][m_indexItems["road"][tmp + 4]],
 					m_vertexItems["road"][m_indexItems["road"][tmp + 5]], temp);
-				m_vertexItems["road"][m_indexItems["road"][tmp + 3]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 4]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 5]].Normal = temp;
+				XMFloat3Add(m_vertexItems["road"][m_indexItems["road"][tmp + 3]].Normal, temp);
+				XMFloat3Add(m_vertexItems["road"][m_indexItems["road"][tmp + 4]].Normal, temp);
+				XMFloat3Add(m_vertexItems["road"][m_indexItems["road"][tmp + 5]].Normal, temp);
 
 				tmp += 6;
 			}
@@ -305,9 +335,9 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				ComputeNomal(m_vertexItems["road"][m_indexItems["road"][tmp]],
 					m_vertexItems["road"][m_indexItems["road"][tmp + 1]],
 					m_vertexItems["road"][m_indexItems["road"][tmp + 2]], temp);
-				m_vertexItems["road"][m_indexItems["road"][tmp]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 1]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 2]].Normal = temp;
+				XMFloat3Add(m_vertexItems["road"][m_indexItems["road"][tmp]].Normal, temp);
+				XMFloat3Add(m_vertexItems["road"][m_indexItems["road"][tmp + 1]].Normal, temp);
+				XMFloat3Add(m_vertexItems["road"][m_indexItems["road"][tmp + 2]].Normal, temp);
 
 
 				m_indexItems["road"][tmp + 3] = startIndex + i * roadWidth + j + 1;
@@ -316,12 +346,19 @@ bool Terrain::InitTerrain(float width, float height, UINT m, UINT n, float scale
 				ComputeNomal(m_vertexItems["road"][m_indexItems["road"][tmp + 3]],
 					m_vertexItems["road"][m_indexItems["road"][tmp + 4]],
 					m_vertexItems["road"][m_indexItems["road"][tmp + 5]], temp);
-				m_vertexItems["road"][m_indexItems["road"][tmp + 3]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 4]].Normal = temp;
-				m_vertexItems["road"][m_indexItems["road"][tmp + 5]].Normal = temp;
+				XMFloat3Add(m_vertexItems["road"][m_indexItems["road"][tmp + 3]].Normal, temp);
+				XMFloat3Add(m_vertexItems["road"][m_indexItems["road"][tmp + 4]].Normal, temp);
+				XMFloat3Add(m_vertexItems["road"][m_indexItems["road"][tmp + 5]].Normal, temp);
 
 				tmp += 6;
 			}
+		}
+
+		//归一化所有法线
+		for (int i = 0; i < m_vertexItems["road"].size(); ++i)
+		{
+			XMFloat3Normalize(m_vertexItems["road"][i].Normal);
+			CalcTangent(m_vertexItems["road"][i].TangentU, m_vertexItems["road"][i].Normal);
 		}
 	}
 
@@ -360,4 +397,37 @@ void Terrain::ComputeNomal(Vertex& v1, Vertex& v2, Vertex& v3, DirectX::XMFLOAT3
 	XMVECTOR vec2 = XMLoadFloat3(&f2);
 	XMVECTOR temp = XMVector3Normalize(XMVector3Cross(vec1, vec2));
 	XMStoreFloat3(&normal, temp);
+}
+
+//dst += vec3
+void Terrain::XMFloat3Add(DirectX::XMFLOAT3& dst, DirectX::XMFLOAT3& vec3)
+{
+	XMVECTOR v1 = XMLoadFloat3(&dst);
+	XMVECTOR v2 = XMLoadFloat3(&vec3);
+	v1 += v2;
+	XMStoreFloat3(&dst, v1);
+}
+
+//归一化XMFloat3
+void Terrain::XMFloat3Normalize(DirectX::XMFLOAT3& vec3)
+{
+	XMVECTOR v = XMLoadFloat3(&vec3);
+	XMVECTOR temp = XMVector3Normalize(v);
+	XMStoreFloat3(&vec3, temp);
+}
+
+//计算切线
+void Terrain::CalcTangent(DirectX::XMFLOAT3& tangent, DirectX::XMFLOAT3& normal)
+{
+	XMFLOAT3 up(0.f, 1.f, 0.f);
+	XMVECTOR vecUp = XMLoadFloat3(&up);
+	XMVECTOR vecNor = XMLoadFloat3(&normal);
+	XMVECTOR vecTan = XMVector3Cross(vecNor, vecUp);
+	XMVECTOR temp = XMVector3Normalize(vecTan);
+	XMStoreFloat3(&tangent, temp);
+	//tangent为（0.f,0.f,0.f），切线为（1.f,0.f,0.f）;
+	if (tangent.x == 0.f && tangent.y == 0.f && tangent.z == 0.f)
+	{
+		tangent = XMFLOAT3(1.f, 0.f, 0.f);
+	}	
 }

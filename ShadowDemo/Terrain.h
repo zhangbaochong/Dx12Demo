@@ -17,6 +17,10 @@ private:
 	bool InitTerrain(float width, float height, UINT m, UINT n, float scale);
 	bool ReadRawFile(std::string filePath);										//从高度图读取高度信息
 	void ComputeNomal(Vertex& v1, Vertex& v2, Vertex& v3, DirectX::XMFLOAT3& normal);	//计算法线
+	void XMFloat3Add(DirectX::XMFLOAT3& dst, DirectX::XMFLOAT3& vec3);
+	void XMFloat3Normalize(DirectX::XMFLOAT3& vec3);
+	void CalcTangent(DirectX::XMFLOAT3& tangent, DirectX::XMFLOAT3& normal);
+
 
 	std::vector<float>	m_heightInfos;		//高度图高度信息
 	int		m_cellsPerRow;					//每行单元格数

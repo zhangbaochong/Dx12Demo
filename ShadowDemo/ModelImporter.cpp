@@ -118,7 +118,7 @@ ModelImporter::ModelMesh ModelImporter::ProcessMesh(aiMesh* mesh, const aiScene*
 			mat->GetTexture(aiTextureType_DIFFUSE, i, &str);
 
 			char path[100];
-			material.Name = "diffuse" + to_string(i);
+			material.Name = "diffuse" + to_string(m_meshes.size());
 			memcpy(path, str.data, str.length + 1);
 			material.DiffuseMapName = path;
 		}
@@ -129,10 +129,11 @@ ModelImporter::ModelMesh ModelImporter::ProcessMesh(aiMesh* mesh, const aiScene*
 			mat->GetTexture(aiTextureType_NORMALS, i, &str);
 
 			char path[100];
-			material.Name = "normal" + to_string(i);
+			material.Name = "normal" + to_string(m_meshes.size());
 			memcpy(path, str.data, str.length + 1);
 			material.NormalMapName = path;
 		}
+
 	}
 
 	return ModelMesh(vertices, indices, material);
