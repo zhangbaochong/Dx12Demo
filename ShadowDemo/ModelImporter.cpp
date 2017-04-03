@@ -3,9 +3,9 @@
 using namespace std;
 using namespace DirectX;
 
-ModelImporter::ModelImporter()
+ModelImporter::ModelImporter(std::string name)
 {
-
+	this->m_name = name;
 }
 
 ModelImporter::~ModelImporter()
@@ -30,6 +30,7 @@ bool ModelImporter::LoadModel(const std::string filepath)
 		return false;
 	}
 
+	this->filepath = filepath;
 	this->ProcessNode(pScene->mRootNode, pScene);
 }
 
@@ -50,8 +51,8 @@ void ModelImporter::ProcessNode(aiNode* node, const aiScene* scene)
 
 ModelImporter::ModelMesh ModelImporter::ProcessMesh(aiMesh* mesh, const aiScene* scene)
 {
-	vector<ModelVertex> vertices(0);
-	vector<UINT> indices(0);
+	vector<ModelVertex> vertices;
+	vector<UINT> indices;
 	ModelMaterial material;
 
 	//解析顶点
@@ -65,7 +66,6 @@ ModelImporter::ModelMesh ModelImporter::ProcessMesh(aiMesh* mesh, const aiScene*
 			mesh->mVertices[i].y,
 			mesh->mVertices[i].z
 		};
-
 		
 		vertex.Normal = XMFLOAT3
 		{
@@ -85,14 +85,17 @@ ModelImporter::ModelMesh ModelImporter::ProcessMesh(aiMesh* mesh, const aiScene*
 		else
 			vertex.TexC = XMFLOAT2{ 0.0f, 0.0f };
 
-		
-		vertex.TangentU = XMFLOAT3
+		//是否有切线
+		if (mesh->mTangents)
 		{
-			mesh->mTangents[i].x,
-			mesh->mTangents[i].y,
-			mesh->mTangents[i].z
-		};
-
+			vertex.TangentU = XMFLOAT3
+			{
+				mesh->mTangents[i].x,
+				mesh->mTangents[i].y,
+				mesh->mTangents[i].z
+			};
+		}
+		
 		vertices.push_back(vertex);
 	}
 	
@@ -106,6 +109,9 @@ ModelImporter::ModelMesh ModelImporter::ProcessMesh(aiMesh* mesh, const aiScene*
 		}
 	}
 
+	int lastPos = filepath.find_last_of('\\');
+	std::string basePath = filepath.substr(0, lastPos + 1);
+	std::string tempStr;
 	//解析材质
 	if (mesh->mMaterialIndex >= 0)
 	{
@@ -116,11 +122,16 @@ ModelImporter::ModelMesh ModelImporter::ProcessMesh(aiMesh* mesh, const aiScene*
 		{
 			aiString str;
 			mat->GetTexture(aiTextureType_DIFFUSE, i, &str);
-
+			
 			char path[100];
-			material.Name = "diffuse" + to_string(m_meshes.size());
+			material.Name = m_name + to_string(m_meshes.size());
 			memcpy(path, str.data, str.length + 1);
-			material.DiffuseMapName = path;
+
+			tempStr = path;
+			int startPos = tempStr.find_last_of('\\');
+			std::string realPath = basePath + tempStr.substr(startPos + 1, 1000);
+
+			material.DiffuseMapName = realPath;
 		}
 
 		for (int i = 0; i < mat->GetTextureCount(aiTextureType_NORMALS); ++i)
@@ -129,9 +140,14 @@ ModelImporter::ModelMesh ModelImporter::ProcessMesh(aiMesh* mesh, const aiScene*
 			mat->GetTexture(aiTextureType_NORMALS, i, &str);
 
 			char path[100];
-			material.Name = "normal" + to_string(m_meshes.size());
+			material.Name = m_name + to_string(m_meshes.size());
 			memcpy(path, str.data, str.length + 1);
-			material.NormalMapName = path;
+
+			tempStr = path;
+			int startPos = tempStr.find_last_of('\\');
+			std::string realPath = basePath + tempStr.substr(startPos + 1, 1000);
+
+			material.NormalMapName = realPath;
 		}
 
 	}

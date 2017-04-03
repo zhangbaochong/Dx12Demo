@@ -89,6 +89,7 @@ private:
 	void BuildTerrainGeometry();
 	void BuildShapeGeometry();
 	void BuildWavesGeometry();
+	void BuildModelsGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
@@ -144,6 +145,11 @@ private:
 
 	//阴影
 	std::unique_ptr<ShadowMap> m_pShadowMap;
+
+	//模型
+	std::unique_ptr<ModelImporter> m_pModelImporter;
+	UINT m_modelSrvHeapIndex = 0;
+	std::vector<std::string> m_modelTexNames;
 
 	DirectX::BoundingSphere m_sceneBounds;
 
@@ -235,9 +241,9 @@ bool ShadowDemo::Initialize()
 
 	m_pShadowMap = std::make_unique<ShadowMap>(m_pD3dDevice.Get(), 2048, 2048);
 
-	//test
-	ModelImporter importer;
-	importer.LoadModel("..\\Models\\fox\\file.fbx");
+	//加载模型
+	m_pModelImporter = std::make_unique<ModelImporter>("fox");
+	m_pModelImporter->LoadModel("..\\Models\\fox\\file.fbx");
 
 	LoadTextures();
 	BuildRootSignature();
@@ -246,6 +252,7 @@ bool ShadowDemo::Initialize()
 	BuildTerrainGeometry();
 	BuildShapeGeometry();
 	BuildWavesGeometry();
+	BuildModelsGeometry();
 	BuildMaterials();
 	BuildRenderItems();
 	BuildFrameResources();
@@ -728,6 +735,26 @@ void ShadowDemo::LoadTextures()
 		L"../Textures/grasscube1024.dds"
 	};
 
+	//添加模型里的贴图
+	for (int i = 0; i < m_pModelImporter->m_meshes.size(); ++i)
+	{
+		std::string diffuseFileName = m_pModelImporter->m_meshes[i].material.DiffuseMapName;
+		std::string normalFileName = m_pModelImporter->m_meshes[i].material.NormalMapName;
+		if (diffuseFileName != "")
+		{
+			m_modelTexNames.push_back(m_pModelImporter->m_meshes[i].material.Name + "DiffuseMap");
+			texNames.push_back(m_pModelImporter->m_meshes[i].material.Name + "DiffuseMap");
+			texFilenames.push_back(AnsiToWString(diffuseFileName));
+		}
+		if (normalFileName != "")
+		{
+			m_modelTexNames.push_back(m_pModelImporter->m_meshes[i].material.Name + "NormalMap");
+			texNames.push_back(m_pModelImporter->m_meshes[i].material.Name + "NormalMap");
+			texFilenames.push_back(AnsiToWString(normalFileName));
+		}
+	}
+
+
 	for (int i = 0; i < (int)texNames.size(); ++i)
 	{
 		if (m_textures.find(texNames[i]) == std::end(m_textures))
@@ -789,7 +816,7 @@ void ShadowDemo::BuildDescriptorHeaps()
 {
 	// Create the SRV heap.
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 22; //共11张图片
+	srvHeapDesc.NumDescriptors = 64; //图片数量*2,？？？
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(m_pD3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_pSrvDescriptorHeap)));
@@ -811,13 +838,22 @@ void ShadowDemo::BuildDescriptorHeaps()
 		m_textures["waterNormalMap"]->Resource
 	};
 
-	auto skyTex = m_textures["skyCubeMap"]->Resource;
+	m_modelSrvHeapIndex = (UINT)tex2DList.size();
 
+	for (UINT i = 0; i < (UINT)m_modelTexNames.size(); ++i)
+	{
+		auto texResource = m_textures[m_modelTexNames[i]]->Resource;
+		assert(texResource != nullptr);
+		tex2DList.push_back(texResource);
+	}
+
+	auto skyTex = m_textures["skyCubeMap"]->Resource;
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
 	for (UINT i = 0; i < (UINT)tex2DList.size(); ++i)
 	{
 		srvDesc.Format = tex2DList[i]->GetDesc().Format;
@@ -899,133 +935,7 @@ void ShadowDemo::BuildShadersAndInputLayout()
 
 //创建网格
 void ShadowDemo::BuildTerrainGeometry()
-{	/**
-	GeometryGenerator geoGen;
-	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 20, 20);
-
-	//create vertex offset
-	UINT groundVertexOffset = 0;
-	UINT grassVertexOffset = m_vertexItems["ground"].size();
-	UINT roadVertexOffset = grassVertexOffset + m_vertexItems["grass"].size();
-	UINT waterVertexOffset = roadVertexOffset + m_vertexItems["road"].size();
-	UINT sphereVertexOffset = waterVertexOffset + m_vertexItems["waterBottom"].size();
-
-	//create start index
-	UINT groundIndexOffset = 0;
-	UINT grassIndexOffset = m_indexItems["ground"].size();
-	UINT roadIndexOffset = grassIndexOffset + m_indexItems["grass"].size();
-	UINT waterIndexOffset = roadIndexOffset + m_indexItems["road"].size();
-	UINT sphereIndexOffset = waterIndexOffset + m_indexItems["waterBottom"].size();
-
-	SubmeshGeometry groundSubmesh;
-	groundSubmesh.IndexCount = m_indexItems["ground"].size();
-	groundSubmesh.StartIndexLocation = groundIndexOffset;
-	groundSubmesh.BaseVertexLocation = groundVertexOffset;
-
-	SubmeshGeometry grassSubmesh;
-	grassSubmesh.IndexCount = m_indexItems["grass"].size();
-	grassSubmesh.StartIndexLocation = grassIndexOffset;
-	grassSubmesh.BaseVertexLocation = grassVertexOffset;
-
-	SubmeshGeometry roadSubmesh;
-	roadSubmesh.IndexCount = m_indexItems["road"].size();
-	roadSubmesh.StartIndexLocation = roadIndexOffset;
-	roadSubmesh.BaseVertexLocation = roadVertexOffset;
-
-	SubmeshGeometry waterSubmesh;
-	waterSubmesh.IndexCount = m_indexItems["waterBottom"].size();
-	waterSubmesh.StartIndexLocation = waterIndexOffset;
-	waterSubmesh.BaseVertexLocation = waterVertexOffset;
-
-	SubmeshGeometry sphereSubmesh;
-	sphereSubmesh.IndexCount = (UINT)sphere.Indices32.size();
-	sphereSubmesh.StartIndexLocation = sphereIndexOffset;
-	sphereSubmesh.BaseVertexLocation = sphereVertexOffset;
-
-	auto totalVertexCount =
-		m_vertexItems["ground"].size() + m_vertexItems["grass"].size()
-		+ m_vertexItems["road"].size() + m_vertexItems["waterBottom"].size() + sphere.Vertices.size();
-
-	std::vector<Vertex> vertices(totalVertexCount);
-	UINT k = 0;
-	for (size_t i = 0; i < m_vertexItems["ground"].size(); ++i, ++k)
-	{
-		vertices[k].Pos = m_vertexItems["ground"][i].Pos;
-		vertices[k].Normal = m_vertexItems["ground"][i].Normal;
-		vertices[k].TexC = m_vertexItems["ground"][i].TexC;
-		vertices[k].TangentU = m_vertexItems["ground"][i].TangentU;
-	}
-
-	for (size_t i = 0; i < m_vertexItems["grass"].size(); ++i, ++k)
-	{
-		vertices[k].Pos = m_vertexItems["grass"][i].Pos;
-		vertices[k].Normal = m_vertexItems["grass"][i].Normal;
-		vertices[k].TexC = m_vertexItems["grass"][i].TexC;
-		vertices[k].TangentU = m_vertexItems["grass"][i].TangentU;
-	}
-
-	for (size_t i = 0; i < m_vertexItems["road"].size(); ++i, ++k)
-	{
-		vertices[k].Pos = m_vertexItems["road"][i].Pos;
-		vertices[k].Normal = m_vertexItems["road"][i].Normal;
-		vertices[k].TexC = m_vertexItems["road"][i].TexC;
-		vertices[k].TangentU = m_vertexItems["road"][i].TangentU;
-	}
-
-	for (size_t i = 0; i < m_vertexItems["waterBottom"].size(); ++i, ++k)
-	{
-		vertices[k].Pos = m_vertexItems["waterBottom"][i].Pos;
-		vertices[k].Normal = m_vertexItems["waterBottom"][i].Normal;
-		vertices[k].TexC = m_vertexItems["waterBottom"][i].TexC;
-		vertices[k].TangentU = m_vertexItems["waterBottom"][i].TangentU;
-	}
-
-	for (size_t i = 0; i < sphere.Vertices.size(); ++i, ++k)
-	{
-		vertices[k].Pos = sphere.Vertices[i].Position;
-		vertices[k].Normal = sphere.Vertices[i].Normal;
-		vertices[k].TexC = sphere.Vertices[i].TexC;
-		vertices[k].TangentU = sphere.Vertices[i].TangentU;
-	}
-
-	std::vector<UINT> indices;
-	indices.insert(indices.end(),m_indexItems["ground"].begin(), m_indexItems["ground"].end());
-	indices.insert(indices.end(), m_indexItems["grass"].begin(), m_indexItems["grass"].end());
-	indices.insert(indices.end(), m_indexItems["road"].begin(), m_indexItems["road"].end());
-	indices.insert(indices.end(), m_indexItems["waterBottom"].begin(), m_indexItems["waterBottom"].end());
-	indices.insert(indices.end(), std::begin(sphere.Indices32), std::end(sphere.Indices32));
-
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
-	const UINT ibByteSize = (UINT)indices.size() * sizeof(UINT);
-
-	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = "terrainGeo";
-
-	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
-	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
-
-	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
-	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
-
-	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(m_pD3dDevice.Get(),
-		m_pCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
-
-	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(m_pD3dDevice.Get(),
-		m_pCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
-
-	geo->VertexByteStride = sizeof(Vertex);
-	geo->VertexBufferByteSize = vbByteSize;
-	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
-	geo->IndexBufferByteSize = ibByteSize;
-
-	geo->DrawArgs["ground"] = groundSubmesh;
-	geo->DrawArgs["grass"] = grassSubmesh;
-	geo->DrawArgs["road"] = roadSubmesh;
-	geo->DrawArgs["waterBottom"] = waterSubmesh;
-	geo->DrawArgs["sphere"] = sphereSubmesh;
-
-	m_geometries[geo->Name] = std::move(geo);	*/
-
+{
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 20, 20);
 
@@ -1283,6 +1193,62 @@ void ShadowDemo::BuildWavesGeometry()
 		m_geometries["waterGeo"] = std::move(geo);
 }
 
+void ShadowDemo::BuildModelsGeometry()
+{
+	GeometryGenerator geoGen;
+	std::vector<ModelImporter::ModelVertex> vertices;
+	std::vector<UINT> indices;
+
+	for (int i = 0; i < m_pModelImporter->m_meshes.size(); ++i)
+	{
+		vertices.insert(vertices.end(),
+			m_pModelImporter->m_meshes[i].vertices.begin(),
+			m_pModelImporter->m_meshes[i].vertices.end());
+		indices.insert(indices.end(),
+			m_pModelImporter->m_meshes[i].indices.begin(),
+			m_pModelImporter->m_meshes[i].indices.end());
+	}
+	
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(ModelImporter::ModelVertex);
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(UINT);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = m_pModelImporter->m_name;
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(m_pD3dDevice.Get(),
+		m_pCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(m_pD3dDevice.Get(),
+		m_pCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+	geo->VertexByteStride = sizeof(ModelImporter::ModelVertex);
+	geo->VertexBufferByteSize = vbByteSize;
+	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	int startOffset = 0;
+	for (UINT i = 0; i < m_pModelImporter->m_meshes.size(); ++i)
+	{
+		SubmeshGeometry submesh;
+		std::string name = "sm_" + std::to_string(i);
+
+		submesh.IndexCount = (UINT)m_pModelImporter->m_meshes[i].indices.size();
+		submesh.StartIndexLocation = startOffset;
+		submesh.BaseVertexLocation = 0;
+		startOffset += submesh.IndexCount;
+
+		geo->DrawArgs[name] = submesh;
+	}
+
+	m_geometries[geo->Name] = std::move(geo);
+}
+
 void ShadowDemo::BuildPSOs()
 {
 	//pso for opaque
@@ -1461,6 +1427,25 @@ void ShadowDemo::BuildMaterials()
 	m_materials["waterBottom"] = std::move(waterBottomMat);
 	m_materials["water"] = std::move(water);
 	m_materials["sky"] = std::move(sky);
+
+	UINT matCBIndex = 6;
+	UINT srvHeapIndex = m_modelSrvHeapIndex;
+	for (UINT i = 0; i < m_pModelImporter->m_meshes.size(); ++i)
+	{
+		auto mat = std::make_unique<Material>();
+		mat->Name = m_pModelImporter->m_meshes[i].material.Name;
+		mat->MatCBIndex = matCBIndex++;
+		mat->DiffuseSrvHeapIndex = srvHeapIndex++;
+		if (m_pModelImporter->m_meshes[i].material.NormalMapName != "")	//有法线贴图
+			mat->NormalSrvHeapIndex = srvHeapIndex++;
+		else
+			mat->NormalSrvHeapIndex = 1;
+		mat->DiffuseAlbedo = m_pModelImporter->m_meshes[i].material.DiffuseAlbedo;
+		mat->FresnelR0 = m_pModelImporter->m_meshes[i].material.FresnelR0;
+		mat->Roughness = m_pModelImporter->m_meshes[i].material.Roughness;
+
+		m_materials[mat->Name] = std::move(mat);
+	}
 }
 
 void ShadowDemo::BuildRenderItems()
@@ -1552,9 +1537,33 @@ void ShadowDemo::BuildRenderItems()
 	boxRitem->indexCount = boxRitem->geo->DrawArgs["box"].IndexCount;
 	boxRitem->startIndexLocation = boxRitem->geo->DrawArgs["box"].StartIndexLocation;
 	boxRitem->baseVertexLocation = boxRitem->geo->DrawArgs["box"].BaseVertexLocation;
-
 	m_ritemLayer[(int)RenderLayer::Opaque].push_back(boxRitem.get());
-	m_allRenderItems.push_back(std::move(boxRitem));	
+	m_allRenderItems.push_back(std::move(boxRitem));
+
+	UINT objCBIndex = 7;
+	for (UINT i = 0; i < m_pModelImporter->m_meshes.size(); ++i)
+	{
+		std::string submeshName = "sm_" + std::to_string(i);
+
+		auto ritem = std::make_unique<RenderItem>();
+
+		// Reflect to change coordinate system from the RHS the data was exported out as.
+		XMMATRIX modelScale = XMMatrixScaling(5.f, 5.f, 5.f);
+		XMMATRIX modelRot = XMMatrixRotationZ(MathHelper::Pi / 2);
+		XMMATRIX modelOffset = XMMatrixTranslation(0.0f, 120.0f, 25.0f);
+		XMStoreFloat4x4(&ritem->world, modelScale*modelRot*modelOffset);
+
+		ritem->texTransform = MathHelper::Identity4x4();
+		ritem->objCBIndex = objCBIndex++;
+		ritem->mat = m_materials[m_pModelImporter->m_meshes[i].material.Name].get();
+		ritem->geo = m_geometries[m_pModelImporter->m_name].get();
+		ritem->primitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		ritem->indexCount = ritem->geo->DrawArgs[submeshName].IndexCount;
+		ritem->startIndexLocation = ritem->geo->DrawArgs[submeshName].StartIndexLocation;
+		ritem->baseVertexLocation = ritem->geo->DrawArgs[submeshName].BaseVertexLocation;
+		m_ritemLayer[(int)RenderLayer::Opaque].push_back(ritem.get());
+		m_allRenderItems.push_back(std::move(ritem));
+	}
 }
 
 void ShadowDemo::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)

@@ -9,7 +9,7 @@
 class ModelImporter
 {
 public:
-	ModelImporter();
+	ModelImporter(std::string name);
 	~ModelImporter();
 
 public:
@@ -69,7 +69,8 @@ public:
 
 	bool LoadModel(const std::string filepath);
 	std::vector<ModelMesh> m_meshes;
-
+	std::string m_name;
+	std::string filepath;
 private:	
 	void ProcessNode(aiNode* node, const aiScene* scene);	//解析每个节点
 	ModelMesh ProcessMesh(aiMesh* mesh, const aiScene* scene);	//解析每个Mesh
