@@ -707,6 +707,7 @@ void ShadowDemo::LoadTextures()
 	//加载不同贴图
 	std::vector<std::string> texNames =
 	{
+		"blankNormalMap",
 		"groundDiffuseMap",
 		"groundNormalMap",
 		"grassDiffuseMap",
@@ -722,6 +723,7 @@ void ShadowDemo::LoadTextures()
 
 	std::vector<std::wstring> texFilenames =
 	{
+		L"../Textures/blank_nrm.dds",
 		L"../Textures/tile.dds",
 		L"../Textures/tile_nmap.dds",
 		L"../Textures/grass_dif.dds",
@@ -826,6 +828,7 @@ void ShadowDemo::BuildDescriptorHeaps()
 
 	std::vector<ComPtr<ID3D12Resource>> tex2DList =
 	{
+		m_textures["blankNormalMap"]->Resource,
 		m_textures["groundDiffuseMap"]->Resource,
 		m_textures["groundNormalMap"]->Resource,
 		m_textures["grassDiffuseMap"]->Resource,
@@ -1370,8 +1373,8 @@ void ShadowDemo::BuildMaterials()
 	auto groudMat = std::make_unique<Material>();
 	groudMat->Name = "ground";
 	groudMat->MatCBIndex = 0;
-	groudMat->DiffuseSrvHeapIndex = 0;
-	groudMat->NormalSrvHeapIndex = 1;
+	groudMat->DiffuseSrvHeapIndex = 1;
+	groudMat->NormalSrvHeapIndex = 2;
 	groudMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	groudMat->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	groudMat->Roughness = 0.6f;
@@ -1379,8 +1382,8 @@ void ShadowDemo::BuildMaterials()
 	auto grassMat = std::make_unique<Material>();
 	grassMat->Name = "grass";
 	grassMat->MatCBIndex = 1;
-	grassMat->DiffuseSrvHeapIndex = 2;
-	grassMat->NormalSrvHeapIndex = 3;
+	grassMat->DiffuseSrvHeapIndex = 3;
+	grassMat->NormalSrvHeapIndex = 4;
 	grassMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	grassMat->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	grassMat->Roughness = 0.2f;
@@ -1388,8 +1391,8 @@ void ShadowDemo::BuildMaterials()
 	auto roadMat = std::make_unique<Material>();
 	roadMat->Name = "road";
 	roadMat->MatCBIndex = 2;
-	roadMat->DiffuseSrvHeapIndex = 4;
-	roadMat->NormalSrvHeapIndex = 5;
+	roadMat->DiffuseSrvHeapIndex = 5;
+	roadMat->NormalSrvHeapIndex = 6;
 	roadMat->DiffuseAlbedo = XMFLOAT4(1.f, 1.f, 1.f, 1.0f);
 	roadMat->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	roadMat->Roughness = 0.8f;
@@ -1397,8 +1400,8 @@ void ShadowDemo::BuildMaterials()
 	auto waterBottomMat = std::make_unique<Material>();
 	waterBottomMat->Name = "waterBottom";
 	waterBottomMat->MatCBIndex = 3;
-	waterBottomMat->DiffuseSrvHeapIndex = 6;
-	waterBottomMat->NormalSrvHeapIndex = 7;
+	waterBottomMat->DiffuseSrvHeapIndex = 7;
+	waterBottomMat->NormalSrvHeapIndex = 8;
 	waterBottomMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	waterBottomMat->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	waterBottomMat->Roughness = 0.5f;
@@ -1406,8 +1409,8 @@ void ShadowDemo::BuildMaterials()
 	auto water = std::make_unique<Material>();
 	water->Name = "water";
 	water->MatCBIndex = 4;
-	water->DiffuseSrvHeapIndex = 8; 
-	water->NormalSrvHeapIndex = 9;//无法线贴图,必须有法线 贴图？？
+	water->DiffuseSrvHeapIndex = 9; 
+	water->NormalSrvHeapIndex = 0;//无法线贴图,必须有法线 贴图？？
 	water->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.5f);//阿尔法值为0.5
 	water->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	water->Roughness = 1.0f;
@@ -1416,7 +1419,7 @@ void ShadowDemo::BuildMaterials()
 	sky->Name = "sky";
 	sky->MatCBIndex = 5;
 	sky->DiffuseSrvHeapIndex = 10;
-	sky->NormalSrvHeapIndex = -1;//无法线贴图
+	sky->NormalSrvHeapIndex = 0;//无法线贴图
 	sky->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	sky->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	sky->Roughness = 1.0f;
@@ -1439,7 +1442,7 @@ void ShadowDemo::BuildMaterials()
 		if (m_pModelImporter->m_meshes[i].material.NormalMapName != "")	//有法线贴图
 			mat->NormalSrvHeapIndex = srvHeapIndex++;
 		else
-			mat->NormalSrvHeapIndex = 1;
+			mat->NormalSrvHeapIndex = 0;
 		mat->DiffuseAlbedo = m_pModelImporter->m_meshes[i].material.DiffuseAlbedo;
 		mat->FresnelR0 = m_pModelImporter->m_meshes[i].material.FresnelR0;
 		mat->Roughness = m_pModelImporter->m_meshes[i].material.Roughness;
@@ -1550,7 +1553,7 @@ void ShadowDemo::BuildRenderItems()
 		// Reflect to change coordinate system from the RHS the data was exported out as.
 		XMMATRIX modelScale = XMMatrixScaling(5.f, 5.f, 5.f);
 		XMMATRIX modelRot = XMMatrixRotationZ(MathHelper::Pi / 2);
-		XMMATRIX modelOffset = XMMatrixTranslation(0.0f, 120.0f, 25.0f);
+		XMMATRIX modelOffset = XMMatrixTranslation(25.0f, 115.0f, 0.0f);
 		XMStoreFloat4x4(&ritem->world, modelScale*modelRot*modelOffset);
 
 		ritem->texTransform = MathHelper::Identity4x4();

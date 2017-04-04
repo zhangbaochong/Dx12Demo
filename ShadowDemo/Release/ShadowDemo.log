@@ -1,10 +1,10 @@
 ﻿  ShadowDemo.cpp
 ShadowDemo.cpp(463): warning C4244: “=”: 从“float”转换到“LONG”，可能丢失数据
 ShadowDemo.cpp(464): warning C4244: “=”: 从“float”转换到“LONG”，可能丢失数据
-ShadowDemo.cpp(739): warning C4018: “<”: 有符号/无符号不匹配
-ShadowDemo.cpp(1100): warning C4018: “<”: 有符号/无符号不匹配
-ShadowDemo.cpp(1202): warning C4018: “<”: 有符号/无符号不匹配
-ShadowDemo.cpp(1198): warning C4101: “geoGen”: 未引用的局部变量
+ShadowDemo.cpp(741): warning C4018: “<”: 有符号/无符号不匹配
+ShadowDemo.cpp(1103): warning C4018: “<”: 有符号/无符号不匹配
+ShadowDemo.cpp(1205): warning C4018: “<”: 有符号/无符号不匹配
+ShadowDemo.cpp(1201): warning C4101: “geoGen”: 未引用的局部变量
 D:\vs2015\VC\include\memory(1630): warning C4244: “参数”: 从“int”转换到“float”，可能丢失数据
   ShadowDemo.cpp(238): note: 参见对正在编译的函数 模板 实例化“std::unique_ptr<Terrain,std::default_delete<_Ty>> std::make_unique<Terrain,int,int,int,int,float>(int &&,int &&,int &&,int &&,float &&)”的引用
           with
@@ -12,9 +12,9 @@ D:\vs2015\VC\include\memory(1630): warning C4244: “参数”: 从“int”转�
               _Ty=Terrain
           ]
   正在生成代码
-  1 of 4643 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
+  10 of 4643 functions ( 0.2%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    1 functions had inline decision re-evaluated but remain unchanged
+    24 functions had inline decision re-evaluated but remain unchanged
   已完成代码的生成
   ShadowDemo.vcxproj -> D:\Github\Dx12Demo\Release\ShadowDemo.exe
   ShadowDemo.vcxproj -> D:\Github\Dx12Demo\Release\ShadowDemo.pdb (Full PDB)
