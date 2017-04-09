@@ -242,8 +242,10 @@ bool ShadowDemo::Initialize()
 	m_pShadowMap = std::make_unique<ShadowMap>(m_pD3dDevice.Get(), 2048, 2048);
 
 	//加载模型
-	m_pModelImporter = std::make_unique<ModelImporter>("fox");
-	m_pModelImporter->LoadModel("..\\Models\\fox\\file.fbx");
+	//m_pModelImporter = std::make_unique<ModelImporter>("fox");
+	//m_pModelImporter->LoadModel("..\\Models\\fox\\file.fbx");
+	m_pModelImporter = std::make_unique<ModelImporter>("magician");
+	m_pModelImporter->LoadModel("..\\Models\\magician\\file.fbx");
 
 	LoadTextures();
 	BuildRootSignature();
@@ -1385,8 +1387,8 @@ void ShadowDemo::BuildMaterials()
 	grassMat->DiffuseSrvHeapIndex = 3;
 	grassMat->NormalSrvHeapIndex = 4;
 	grassMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	grassMat->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
-	grassMat->Roughness = 0.2f;
+	grassMat->FresnelR0 = XMFLOAT3(0.05f, 0.05f,0.05f);
+	grassMat->Roughness = 0.0f;
 
 	auto roadMat = std::make_unique<Material>();
 	roadMat->Name = "road";
@@ -1438,8 +1440,13 @@ void ShadowDemo::BuildMaterials()
 		auto mat = std::make_unique<Material>();
 		mat->Name = m_pModelImporter->m_meshes[i].material.Name;
 		mat->MatCBIndex = matCBIndex++;
-		mat->DiffuseSrvHeapIndex = srvHeapIndex++;
-		if (m_pModelImporter->m_meshes[i].material.NormalMapName != "")	//有法线贴图
+		//有漫反射贴图
+		if (m_pModelImporter->m_meshes[i].material.DiffuseMapName != "")
+			mat->DiffuseSrvHeapIndex = srvHeapIndex++;
+		else
+			mat->DiffuseSrvHeapIndex = 0;
+		//有法线贴图
+		if (m_pModelImporter->m_meshes[i].material.NormalMapName != "")	
 			mat->NormalSrvHeapIndex = srvHeapIndex++;
 		else
 			mat->NormalSrvHeapIndex = 0;
@@ -1552,8 +1559,8 @@ void ShadowDemo::BuildRenderItems()
 
 		// Reflect to change coordinate system from the RHS the data was exported out as.
 		XMMATRIX modelScale = XMMatrixScaling(5.f, 5.f, 5.f);
-		XMMATRIX modelRot = XMMatrixRotationZ(MathHelper::Pi / 2);
-		XMMATRIX modelOffset = XMMatrixTranslation(25.0f, 115.0f, 0.0f);
+		XMMATRIX modelRot = XMMatrixRotationZ(MathHelper::Pi / 2) * XMMatrixRotationY(MathHelper::Pi / 2);
+		XMMATRIX modelOffset = XMMatrixTranslation(-40.0f, 101.0f, 0.0f);
 		XMStoreFloat4x4(&ritem->world, modelScale*modelRot*modelOffset);
 
 		ritem->texTransform = MathHelper::Identity4x4();

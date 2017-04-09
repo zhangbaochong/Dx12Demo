@@ -117,21 +117,29 @@ ModelImporter::ModelMesh ModelImporter::ProcessMesh(aiMesh* mesh, const aiScene*
 	{
 		aiMaterial* mat = scene->mMaterials[mesh->mMaterialIndex];
 
+		material.Name = m_name + to_string(m_meshes.size());
 		//加载漫反射纹理,只加载一张
 		for (int i = 0; i < mat->GetTextureCount(aiTextureType_DIFFUSE); ++i)
 		{
 			aiString str;
 			mat->GetTexture(aiTextureType_DIFFUSE, i, &str);
 			
-			char path[100];
-			material.Name = m_name + to_string(m_meshes.size());
+			char path[100];			
 			memcpy(path, str.data, str.length + 1);
 
 			tempStr = path;
 			int startPos = tempStr.find_last_of('\\');
 			std::string realPath = basePath + tempStr.substr(startPos + 1, 1000);
 
+			int tempPos = realPath.find_last_of('.');
+			std::string strForm = realPath.substr(tempPos + 1, 100);
+			//如果后缀不是dds转化为dds
+			if (strForm != "dds")
+			{
+				realPath = realPath.substr(0, tempPos + 1) + "dds";
+			}
 			material.DiffuseMapName = realPath;
+			
 		}
 
 		for (int i = 0; i < mat->GetTextureCount(aiTextureType_NORMALS); ++i)
@@ -140,13 +148,19 @@ ModelImporter::ModelMesh ModelImporter::ProcessMesh(aiMesh* mesh, const aiScene*
 			mat->GetTexture(aiTextureType_NORMALS, i, &str);
 
 			char path[100];
-			material.Name = m_name + to_string(m_meshes.size());
 			memcpy(path, str.data, str.length + 1);
 
 			tempStr = path;
 			int startPos = tempStr.find_last_of('\\');
 			std::string realPath = basePath + tempStr.substr(startPos + 1, 1000);
 
+			int tempPos = realPath.find_last_of('.');
+			std::string strForm = realPath.substr(tempPos + 1, 100);
+			//如果后缀不是dds转化为dds
+			if (strForm != "dds")
+			{
+				realPath = realPath.substr(0, tempPos + 1) + "dds";
+			}
 			material.NormalMapName = realPath;
 		}
 
