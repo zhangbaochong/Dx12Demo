@@ -1,7 +1,3 @@
-//***************************************************************************************
-// Common.hlsl by Frank Luna (C) 2015 All Rights Reserved.
-//***************************************************************************************
-
 // Defaults for number of lights.
 #ifndef NUM_DIR_LIGHTS
     #define NUM_DIR_LIGHTS 3
@@ -15,7 +11,6 @@
     #define NUM_SPOT_LIGHTS 0
 #endif
 
-// Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
 
 struct MaterialData
@@ -33,14 +28,9 @@ struct MaterialData
 TextureCube gCubeMap : register(t0);
 Texture2D gShadowMap : register(t1);
 
-// An array of textures, which is only supported in shader model 5.1+.  Unlike Texture2DArray, the textures
-// in this array can be different sizes and formats, making it more flexible than texture arrays.
 Texture2D gTextureMaps[10] : register(t2);
 
-// Put in space1, so the texture array does not overlap with these resources.  
-// The texture array will occupy registers t0, t1, ..., t3 in space0. 
 StructuredBuffer<MaterialData> gMaterialData : register(t0, space1);
-
 
 SamplerState gsamPointWrap        : register(s0);
 SamplerState gsamPointClamp       : register(s1);
@@ -50,7 +40,7 @@ SamplerState gsamAnisotropicWrap  : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
 SamplerComparisonState gsamShadow : register(s6);
 
-// Constant data that varies per frame.
+//每一帧常量
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
@@ -80,37 +70,28 @@ cbuffer cbPass : register(b1)
     float gDeltaTime;
     float4 gAmbientLight;
 
-    // Indices [0, NUM_DIR_LIGHTS) are directional lights;
-    // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
-    // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
-    // are spot lights for a maximum of MaxLights per object.
     Light gLights[MaxLights];
 };
 
-//---------------------------------------------------------------------------------------
-// Transforms a normal map sample to world space.
-//---------------------------------------------------------------------------------------
+
 float3 NormalSampleToWorldSpace(float3 normalMapSample, float3 unitNormalW, float3 tangentW)
 {
-	// Uncompress each component from [0,1] to [-1,1].
+	// 转换[0,1] to [-1,1].
 	float3 normalT = 2.0f*normalMapSample - 1.0f;
 
-	// Build orthonormal basis.
+	//切线空间
 	float3 N = unitNormalW;
 	float3 T = normalize(tangentW - dot(tangentW, N)*N);
 	float3 B = cross(N, T);
 
 	float3x3 TBN = float3x3(T, B, N);
 
-	// Transform from tangent space to world space.
+	//从切线空间转到世界空间
 	float3 bumpedNormalW = mul(normalT, TBN);
 
 	return bumpedNormalW;
 }
 
-//---------------------------------------------------------------------------------------
-// PCF for shadow mapping.
-//---------------------------------------------------------------------------------------
 
 float CalcShadowFactor(float4 shadowPosH)
 {
@@ -121,6 +102,7 @@ float CalcShadowFactor(float4 shadowPosH)
     float depth = shadowPosH.z;
 
     uint width, height, numMips;
+    //得到图片信息
     gShadowMap.GetDimensions(0, width, height, numMips);
 
     // Texel size.

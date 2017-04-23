@@ -247,6 +247,7 @@ bool ShadowDemo::Initialize()
 	m_pModelImporter = std::make_unique<ModelImporter>("magician");
 	m_pModelImporter->LoadModel("..\\Models\\magician\\file.fbx");
 
+
 	LoadTextures();
 	BuildRootSignature();
 	BuildDescriptorHeaps();
@@ -321,7 +322,7 @@ void ShadowDemo::Update(const GameTimer& gt)
 	}
 
 	//改变灯光角度
-	m_lightRotationAngle += 0.1f*gt.DeltaTime();
+	m_lightRotationAngle += 0.05f*gt.DeltaTime();
 	XMMATRIX R = XMMatrixRotationY(m_lightRotationAngle);
 	for (int i = 0; i < 3; ++i)
 	{
@@ -375,38 +376,22 @@ void ShadowDemo::Draw(const GameTimer& gt)
 	m_pCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	m_pCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
-	/**
-	ID3D12DescriptorHeap* descriptorHeaps[] = { m_pSrvDescriptorHeap.Get() };
-	m_pCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
-	m_pCommandList->SetGraphicsRootSignature(m_pRootSignature.Get());*/
 
 	auto passCB = m_pCurrFrameResource->PassCB->Resource();
 	m_pCommandList->SetGraphicsRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
-
-	/* Bind all the materials used in this scene.
-	auto matBuffer = m_pCurrFrameResource->MaterialBuffer->Resource();
-	m_pCommandList->SetGraphicsRootShaderResourceView(2, matBuffer->GetGPUVirtualAddress());*/
 
 	//Bind the sky cube map
 	CD3DX12_GPU_DESCRIPTOR_HANDLE skyTexDescriptor(m_pSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 	skyTexDescriptor.Offset(m_skyTexHeapIndex, m_cbvSrvDescriptorSize);
 	m_pCommandList->SetGraphicsRootDescriptorTable(3, skyTexDescriptor);
 
-	/* Bind all the textures used in this scene
-	m_pCommandList->SetGraphicsRootDescriptorTable(4, m_pSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-	*/
-	
 	//render opaque
 	m_pCommandList->SetPipelineState(m_PSOs["opaque"].Get());
 	DrawRenderItems(m_pCommandList.Get(), m_ritemLayer[(int)RenderLayer::Opaque]);
+
 	//render sky
 	m_pCommandList->SetPipelineState(m_PSOs["sky"].Get());
 	DrawRenderItems(m_pCommandList.Get(), m_ritemLayer[(int)RenderLayer::Sky]);
-
-	/*render debug 暂时没添加debug层 可以用于在屏幕上上显示东西
-	m_pCommandList->SetPipelineState(m_PSOs["debug"].Get());
-	DrawRenderItems(m_pCommandList.Get(), m_ritemLayer[(int)RenderLayer::Debug]);*/
 
 	//render transparent
 	m_pCommandList->SetPipelineState(m_PSOs["transparent"].Get());
@@ -1386,8 +1371,8 @@ void ShadowDemo::BuildMaterials()
 	grassMat->MatCBIndex = 1;
 	grassMat->DiffuseSrvHeapIndex = 3;
 	grassMat->NormalSrvHeapIndex = 4;
-	grassMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	grassMat->FresnelR0 = XMFLOAT3(0.05f, 0.05f,0.05f);
+	grassMat->DiffuseAlbedo = XMFLOAT4(1.f, 1.f, 1.f, 1.0f);
+	grassMat->FresnelR0 = XMFLOAT3(0.0f, 0.0f,0.0f);
 	grassMat->Roughness = 0.0f;
 
 	auto roadMat = std::make_unique<Material>();

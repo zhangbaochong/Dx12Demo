@@ -79,11 +79,16 @@ int D3d12Base::Run()
 		}
 		else
 		{
+			const int constFps = 120;
+			float timeInOneFps = 1000.0f / constFps;    // 每秒60帧，则1帧就是约16毫秒
+			DWORD timeBegin = GetTickCount();
+	
 			m_timer.Tick();
 
 			if (!m_isAppPaused)
 			{
 				CalculateFrameStats();
+				
 				Update(m_timer);
 				Draw(m_timer);
 			}
@@ -91,6 +96,11 @@ int D3d12Base::Run()
 			{
 				Sleep(100);
 			}
+
+			// 限帧
+			DWORD timeTotal = GetTickCount() - timeBegin;
+			if (timeTotal < timeInOneFps)
+				Sleep(DWORD(timeInOneFps - timeTotal));
 		}
 	}
 

@@ -21,7 +21,8 @@ bool ModelImporter::LoadModel(const std::string filepath)
 		aiProcess_FlipUVs | //翻转
 		aiProcess_CalcTangentSpace | //计算切线空间
 		aiProcess_FixInfacingNormals | //修正正反面
-		aiProcess_ConvertToLeftHanded //变为左手系
+		aiProcess_ConvertToLeftHanded |//变为左手系
+		aiProcess_GenNormals
 	);
 
 	if (!pScene)
