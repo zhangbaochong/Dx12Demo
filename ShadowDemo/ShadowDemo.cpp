@@ -8,6 +8,7 @@
 #include "waves.h"
 #include "ShadowMap.h"
 #include "ModelImporter.h"
+#include "Model.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -83,6 +84,7 @@ private:
 	void UpdateWaves(const GameTimer& gt);
 
 	void LoadTextures();
+	void LoadModels();
 	void BuildRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
@@ -147,9 +149,9 @@ private:
 	std::unique_ptr<ShadowMap> m_pShadowMap;
 
 	//模型
-	std::unique_ptr<ModelImporter> m_pModelImporter;
 	UINT m_modelSrvHeapIndex = 0;
 	std::vector<std::string> m_modelTexNames;
+	std::vector<Model> m_models;
 
 	DirectX::BoundingSphere m_sceneBounds;
 
@@ -244,10 +246,11 @@ bool ShadowDemo::Initialize()
 	//加载模型
 	//m_pModelImporter = std::make_unique<ModelImporter>("fox");
 	//m_pModelImporter->LoadModel("..\\Models\\fox\\file.fbx");
-	m_pModelImporter = std::make_unique<ModelImporter>("magician");
-	m_pModelImporter->LoadModel("..\\Models\\magician\\file.fbx");
+	//m_pModelImporter = std::make_unique<ModelImporter>("magician");
+	//m_pModelImporter->LoadModel("..\\Models\\magician\\file.fbx");
 
 
+	LoadModels();
 	LoadTextures();
 	BuildRootSignature();
 	BuildDescriptorHeaps();
@@ -270,6 +273,29 @@ bool ShadowDemo::Initialize()
 	FlushCommandQueue();
 
 	return true;
+}
+
+void ShadowDemo::LoadModels()
+{
+	//魔法师
+	{
+		Model magician("fox", "..\\Models\\fox\\file.fbx");
+		XMMATRIX modelScale = XMMatrixScaling(5.f, 5.f, 5.f);
+		XMMATRIX modelRot = XMMatrixRotationZ(MathHelper::Pi / 2) * XMMatrixRotationY(MathHelper::Pi / 2);
+		XMMATRIX modelOffset = XMMatrixTranslation(40.0f, 101.0f, 0.0f);
+		magician.SetScaleRotateOffset(modelScale, modelRot, modelOffset);
+		m_models.push_back(magician);
+	}
+
+	//狐狸
+	{
+		Model magician("magician", "..\\Models\\magician\\file.fbx");
+		XMMATRIX modelScale = XMMatrixScaling(5.f, 5.f, 5.f);
+		XMMATRIX modelRot = XMMatrixRotationZ(MathHelper::Pi / 2) * XMMatrixRotationY(MathHelper::Pi / 2);
+		XMMATRIX modelOffset = XMMatrixTranslation(-40.0f, 101.0f, 0.0f);
+		magician.SetScaleRotateOffset(modelScale, modelRot, modelOffset);
+		m_models.push_back(magician);
+	}
 }
 
 void ShadowDemo::CreateRtvAndDsvDescriptorHeaps()
@@ -724,25 +750,29 @@ void ShadowDemo::LoadTextures()
 		L"../Textures/grasscube1024.dds"
 	};
 
-	//添加模型里的贴图
-	for (int i = 0; i < m_pModelImporter->m_meshes.size(); ++i)
+	for (int i = 0; i < m_models.size(); ++i)
 	{
-		std::string diffuseFileName = m_pModelImporter->m_meshes[i].material.DiffuseMapName;
-		std::string normalFileName = m_pModelImporter->m_meshes[i].material.NormalMapName;
-		if (diffuseFileName != "")
+		//添加模型里的贴图
+		for (int j = 0; j < m_models[i].m_meshes.size(); ++j)
 		{
-			m_modelTexNames.push_back(m_pModelImporter->m_meshes[i].material.Name + "DiffuseMap");
-			texNames.push_back(m_pModelImporter->m_meshes[i].material.Name + "DiffuseMap");
-			texFilenames.push_back(AnsiToWString(diffuseFileName));
+			std::string diffuseFileName = m_models[i].m_meshes[j].material.DiffuseMapName;
+			std::string normalFileName = m_models[i].m_meshes[j].material.NormalMapName;
+			if (diffuseFileName != "")
+			{
+				m_modelTexNames.push_back(m_models[i].m_meshes[j].material.Name + "DiffuseMap");
+				texNames.push_back(m_models[i].m_meshes[j].material.Name + "DiffuseMap");
+				texFilenames.push_back(AnsiToWString(diffuseFileName));
+			}
+			if (normalFileName != "")
+			{
+				m_modelTexNames.push_back(m_models[i].m_meshes[j].material.Name + "NormalMap");
+				texNames.push_back(m_models[i].m_meshes[j].material.Name + "NormalMap");
+				texFilenames.push_back(AnsiToWString(normalFileName));
+			}
 		}
-		if (normalFileName != "")
-		{
-			m_modelTexNames.push_back(m_pModelImporter->m_meshes[i].material.Name + "NormalMap");
-			texNames.push_back(m_pModelImporter->m_meshes[i].material.Name + "NormalMap");
-			texFilenames.push_back(AnsiToWString(normalFileName));
-		}
-	}
 
+	}
+	
 
 	for (int i = 0; i < (int)texNames.size(); ++i)
 	{
@@ -1185,58 +1215,60 @@ void ShadowDemo::BuildWavesGeometry()
 
 void ShadowDemo::BuildModelsGeometry()
 {
-	GeometryGenerator geoGen;
-	std::vector<ModelImporter::ModelVertex> vertices;
-	std::vector<UINT> indices;
-
-	for (int i = 0; i < m_pModelImporter->m_meshes.size(); ++i)
+	for (int modelIndex = 0; modelIndex < m_models.size(); ++modelIndex)
 	{
-		vertices.insert(vertices.end(),
-			m_pModelImporter->m_meshes[i].vertices.begin(),
-			m_pModelImporter->m_meshes[i].vertices.end());
-		indices.insert(indices.end(),
-			m_pModelImporter->m_meshes[i].indices.begin(),
-			m_pModelImporter->m_meshes[i].indices.end());
-	}
-	
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(ModelImporter::ModelVertex);
-	const UINT ibByteSize = (UINT)indices.size() * sizeof(UINT);
+		std::vector<ModelImporter::ModelVertex> vertices;
+		std::vector<UINT> indices;
 
-	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = m_pModelImporter->m_name;
+		for (int i = 0; i < m_models[modelIndex].m_meshes.size(); ++i)
+		{
+			vertices.insert(vertices.end(),
+				m_models[modelIndex].m_meshes[i].vertices.begin(),
+				m_models[modelIndex].m_meshes[i].vertices.end());
+			indices.insert(indices.end(),
+				m_models[modelIndex].m_meshes[i].indices.begin(),
+				m_models[modelIndex].m_meshes[i].indices.end());
+		}
 
-	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
-	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+		const UINT vbByteSize = (UINT)vertices.size() * sizeof(ModelImporter::ModelVertex);
+		const UINT ibByteSize = (UINT)indices.size() * sizeof(UINT);
 
-	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
-	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+		auto geo = std::make_unique<MeshGeometry>();
+		geo->Name = m_models[modelIndex].m_name;
 
-	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(m_pD3dDevice.Get(),
-		m_pCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+		ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+		CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
 
-	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(m_pD3dDevice.Get(),
-		m_pCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+		ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+		CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
-	geo->VertexByteStride = sizeof(ModelImporter::ModelVertex);
-	geo->VertexBufferByteSize = vbByteSize;
-	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
-	geo->IndexBufferByteSize = ibByteSize;
+		geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(m_pD3dDevice.Get(),
+			m_pCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
 
-	int startOffset = 0;
-	for (UINT i = 0; i < m_pModelImporter->m_meshes.size(); ++i)
-	{
-		SubmeshGeometry submesh;
-		std::string name = "sm_" + std::to_string(i);
+		geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(m_pD3dDevice.Get(),
+			m_pCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
 
-		submesh.IndexCount = (UINT)m_pModelImporter->m_meshes[i].indices.size();
-		submesh.StartIndexLocation = startOffset;
-		submesh.BaseVertexLocation = 0;
-		startOffset += submesh.IndexCount;
+		geo->VertexByteStride = sizeof(ModelImporter::ModelVertex);
+		geo->VertexBufferByteSize = vbByteSize;
+		geo->IndexFormat = DXGI_FORMAT_R32_UINT;
+		geo->IndexBufferByteSize = ibByteSize;
 
-		geo->DrawArgs[name] = submesh;
-	}
+		int startOffset = 0;
+		for (UINT i = 0; i <m_models[modelIndex].m_meshes.size(); ++i)
+		{
+			SubmeshGeometry submesh;
+			std::string name = "sm_" + std::to_string(i);
 
-	m_geometries[geo->Name] = std::move(geo);
+			submesh.IndexCount = (UINT)m_models[modelIndex].m_meshes[i].indices.size();
+			submesh.StartIndexLocation = startOffset;
+			submesh.BaseVertexLocation = 0;
+			startOffset += submesh.IndexCount;
+
+			geo->DrawArgs[name] = submesh;
+		}
+
+		m_geometries[geo->Name] = std::move(geo);
+	}	
 }
 
 void ShadowDemo::BuildPSOs()
@@ -1420,27 +1452,31 @@ void ShadowDemo::BuildMaterials()
 
 	UINT matCBIndex = 6;
 	UINT srvHeapIndex = m_modelSrvHeapIndex;
-	for (UINT i = 0; i < m_pModelImporter->m_meshes.size(); ++i)
+	for (UINT modelIndex = 0; modelIndex < m_models.size(); ++modelIndex)
 	{
-		auto mat = std::make_unique<Material>();
-		mat->Name = m_pModelImporter->m_meshes[i].material.Name;
-		mat->MatCBIndex = matCBIndex++;
-		//有漫反射贴图
-		if (m_pModelImporter->m_meshes[i].material.DiffuseMapName != "")
-			mat->DiffuseSrvHeapIndex = srvHeapIndex++;
-		else
-			mat->DiffuseSrvHeapIndex = 0;
-		//有法线贴图
-		if (m_pModelImporter->m_meshes[i].material.NormalMapName != "")	
-			mat->NormalSrvHeapIndex = srvHeapIndex++;
-		else
-			mat->NormalSrvHeapIndex = 0;
-		mat->DiffuseAlbedo = m_pModelImporter->m_meshes[i].material.DiffuseAlbedo;
-		mat->FresnelR0 = m_pModelImporter->m_meshes[i].material.FresnelR0;
-		mat->Roughness = m_pModelImporter->m_meshes[i].material.Roughness;
+		for (UINT i = 0; i < m_models[modelIndex].m_meshes.size(); ++i)
+		{
+			auto mat = std::make_unique<Material>();
+			mat->Name = m_models[modelIndex].m_meshes[i].material.Name;
+			mat->MatCBIndex = matCBIndex++;
+			//有漫反射贴图
+			if (m_models[modelIndex].m_meshes[i].material.DiffuseMapName != "")
+				mat->DiffuseSrvHeapIndex = srvHeapIndex++;
+			else
+				mat->DiffuseSrvHeapIndex = 0;
+			//有法线贴图
+			if (m_models[modelIndex].m_meshes[i].material.NormalMapName != "")
+				mat->NormalSrvHeapIndex = srvHeapIndex++;
+			else
+				mat->NormalSrvHeapIndex = 0;
+			mat->DiffuseAlbedo = m_models[modelIndex].m_meshes[i].material.DiffuseAlbedo;
+			mat->FresnelR0 = m_models[modelIndex].m_meshes[i].material.FresnelR0;
+			mat->Roughness = m_models[modelIndex].m_meshes[i].material.Roughness;
 
-		m_materials[mat->Name] = std::move(mat);
+			m_materials[mat->Name] = std::move(mat);
+		}
 	}
+	
 }
 
 void ShadowDemo::BuildRenderItems()
@@ -1536,29 +1572,36 @@ void ShadowDemo::BuildRenderItems()
 	m_allRenderItems.push_back(std::move(boxRitem));
 
 	UINT objCBIndex = 7;
-	for (UINT i = 0; i < m_pModelImporter->m_meshes.size(); ++i)
+
+	for (UINT modelIndex = 0; modelIndex < m_models.size(); ++modelIndex)
 	{
-		std::string submeshName = "sm_" + std::to_string(i);
+		for (UINT i = 0; i < m_models[modelIndex].m_meshes.size(); ++i)
+		{
+			std::string submeshName = "sm_" + std::to_string(i);
 
-		auto ritem = std::make_unique<RenderItem>();
+			auto ritem = std::make_unique<RenderItem>();
 
-		// Reflect to change coordinate system from the RHS the data was exported out as.
-		XMMATRIX modelScale = XMMatrixScaling(5.f, 5.f, 5.f);
-		XMMATRIX modelRot = XMMatrixRotationZ(MathHelper::Pi / 2) * XMMatrixRotationY(MathHelper::Pi / 2);
-		XMMATRIX modelOffset = XMMatrixTranslation(-40.0f, 101.0f, 0.0f);
-		XMStoreFloat4x4(&ritem->world, modelScale*modelRot*modelOffset);
+			/**
+			// Reflect to change coordinate system from the RHS the data was exported out as.
+			XMMATRIX modelScale = XMMatrixScaling(5.f, 5.f, 5.f);
+			XMMATRIX modelRot = XMMatrixRotationZ(MathHelper::Pi / 2) * XMMatrixRotationY(MathHelper::Pi / 2);
+			XMMATRIX modelOffset = XMMatrixTranslation(-40.0f, 101.0f, 0.0f);
+			XMStoreFloat4x4(&ritem->world, modelScale*modelRot*modelOffset);*/
+			XMStoreFloat4x4(&ritem->world, m_models[modelIndex].GetWorld());
 
-		ritem->texTransform = MathHelper::Identity4x4();
-		ritem->objCBIndex = objCBIndex++;
-		ritem->mat = m_materials[m_pModelImporter->m_meshes[i].material.Name].get();
-		ritem->geo = m_geometries[m_pModelImporter->m_name].get();
-		ritem->primitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		ritem->indexCount = ritem->geo->DrawArgs[submeshName].IndexCount;
-		ritem->startIndexLocation = ritem->geo->DrawArgs[submeshName].StartIndexLocation;
-		ritem->baseVertexLocation = ritem->geo->DrawArgs[submeshName].BaseVertexLocation;
-		m_ritemLayer[(int)RenderLayer::Opaque].push_back(ritem.get());
-		m_allRenderItems.push_back(std::move(ritem));
+			ritem->texTransform = MathHelper::Identity4x4();
+			ritem->objCBIndex = objCBIndex++;
+			ritem->mat = m_materials[m_models[modelIndex].m_meshes[i].material.Name].get();
+			ritem->geo = m_geometries[m_models[modelIndex].m_name].get();
+			ritem->primitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			ritem->indexCount = ritem->geo->DrawArgs[submeshName].IndexCount;
+			ritem->startIndexLocation = ritem->geo->DrawArgs[submeshName].StartIndexLocation;
+			ritem->baseVertexLocation = ritem->geo->DrawArgs[submeshName].BaseVertexLocation;
+			m_ritemLayer[(int)RenderLayer::Opaque].push_back(ritem.get());
+			m_allRenderItems.push_back(std::move(ritem));
+		}
 	}
+	
 }
 
 void ShadowDemo::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
